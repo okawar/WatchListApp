@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat app/\\\\\\(tabs\\\\\\)/index.tsx app/\\\\\\(tabs\\\\\\)/explore.tsx app/\\\\\\(tabs\\\\\\)/_layout.tsx app/_layout.tsx)"
+    ]
+  }
+}
