@@ -4,16 +4,16 @@ import { searchMulti } from "@/services/movies";
 import { Movie, TVShow } from "@/types/movie";
 
 const normalizeResult = (item: any): Movie | null => {
-  if (item.media_type === "movie") return item as Movie;
+  if (item.media_type === "movie") return { ...item, media_type: "movie" } as Movie;
   if (item.media_type === "tv") {
-    const show = item as TVShow & { media_type: string };
     return {
-      id: show.id,
-      title: (show as any).name,
-      overview: show.overview,
-      poster_path: show.poster_path,
-      vote_average: show.vote_average,
-      release_date: (show as any).first_air_date ?? "",
+      id: item.id,
+      title: item.name,
+      overview: item.overview,
+      poster_path: item.poster_path,
+      vote_average: item.vote_average,
+      release_date: item.first_air_date ?? "",
+      media_type: "tv",
     };
   }
   return null;

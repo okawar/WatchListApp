@@ -51,6 +51,11 @@ const buildDiscoverParts = (params: DiscoverParams, yearKey: string) => {
   return parts;
 };
 
+export const getMovieVideos = (id: number) => fetchData(`/movie/${id}/videos`);
+export const getTVDetails = (id: number) => fetchData(`/tv/${id}`);
+export const getTVCredits = (id: number) => fetchData(`/tv/${id}/credits`);
+export const getTVVideos = (id: number) => fetchData(`/tv/${id}/videos`);
+
 export const discoverMoviesAdvanced = async (params: DiscoverParams) =>
   fetchData(`/discover/movie?${buildDiscoverParts(params, "primary_release_year").join("&")}`);
 

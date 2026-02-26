@@ -1,8 +1,8 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -30,7 +30,7 @@ export default function HomeScreen() {
   const renderListItem = ({ item }: { item: Movie }) => (
     <TouchableOpacity
       style={styles.movieItem}
-      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
+      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id, type: item.media_type ?? "movie" } })}
       activeOpacity={0.7}
     >
       <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.poster} />
@@ -56,7 +56,7 @@ export default function HomeScreen() {
   const renderGridItem = ({ item }: { item: Movie }) => (
     <TouchableOpacity
       style={styles.gridItem}
-      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
+      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id, type: item.media_type ?? "movie" } })}
       activeOpacity={0.7}
     >
       <View style={styles.gridPosterWrap}>
@@ -122,7 +122,7 @@ export default function HomeScreen() {
                   style={styles.watchlistCard}
                   activeOpacity={0.8}
                   onPress={() =>
-                    router.push({ pathname: "/movie/[id]", params: { id: movie.id } })
+                    router.push({ pathname: "/movie/[id]", params: { id: movie.id, type: movie.media_type ?? "movie" } })
                   }
                 >
                   <View style={styles.watchlistPosterWrap}>

@@ -12,6 +12,7 @@ const normalizeTV = (item: any): Movie => ({
   poster_path: item.poster_path,
   vote_average: item.vote_average,
   release_date: item.first_air_date ?? "",
+  media_type: "tv",
 });
 
 export function useMediaDiscover(
@@ -40,7 +41,10 @@ export function useMediaDiscover(
             : await discoverTVAdvanced(params);
 
         const raw: any[] = data.results ?? [];
-        const results: Movie[] = type === "tv" ? raw.map(normalizeTV) : raw;
+        const results: Movie[] =
+          type === "tv"
+            ? raw.map(normalizeTV)
+            : raw.map((item: any) => ({ ...item, media_type: "movie" as const }));
 
         setAllItems((prev) => (page === 1 ? results : [...prev, ...results]));
         setTotalPages(data.total_pages ?? 1);

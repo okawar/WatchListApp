@@ -21,6 +21,7 @@ const normalizeTV = (show: TVShow): Movie => ({
   poster_path: show.poster_path,
   vote_average: show.vote_average,
   release_date: show.first_air_date,
+  media_type: "tv",
 });
 
 type Fetcher = (page: number) => Promise<any>;
