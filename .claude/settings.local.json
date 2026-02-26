@@ -8,7 +8,12 @@
       "Bash(git:*)",
       "mcp__claude_ai_Context7__resolve-library-id",
       "mcp__claude_ai_Context7__query-docs",
-      "Bash(npx expo:*)"
+      "Bash(npx expo:*)",
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api:*)"
     ]
   }
 }

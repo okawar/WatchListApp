@@ -18,11 +18,21 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { signIn, signUp, continueAsGuest } = useAuth();
+  const { signIn, signUp } = useAuth();
+
+  const switchMode = (newMode: Mode) => {
+    setMode(newMode);
+    setError(null);
+    setInfo(null);
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -31,15 +41,26 @@ export default function LoginScreen() {
       setError("Заполните email и пароль");
       return;
     }
+
+    if (mode === "register" && password !== confirmPassword) {
+      setError("Пароли не совпадают");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const err =
         mode === "login"
           ? await signIn(email.trim(), password)
           : await signUp(email.trim(), password);
+
       if (err) {
         setError(err);
       } else if (mode === "register") {
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+        setMode("login");
         setInfo("Подтвердите email — письмо отправлено на почту.");
       }
     } finally {
@@ -61,7 +82,7 @@ export default function LoginScreen() {
         <View style={styles.modeRow}>
           <TouchableOpacity
             style={[styles.modeBtn, mode === "login" && styles.modeBtnActive]}
-            onPress={() => { setMode("login"); setError(null); setInfo(null); }}
+            onPress={() => switchMode("login")}
           >
             <Text style={[styles.modeBtnText, mode === "login" && styles.modeBtnTextActive]}>
               Войти
@@ -69,7 +90,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeBtn, mode === "register" && styles.modeBtnActive]}
-            onPress={() => { setMode("register"); setError(null); setInfo(null); }}
+            onPress={() => switchMode("register")}
           >
             <Text style={[styles.modeBtnText, mode === "register" && styles.modeBtnTextActive]}>
               Регистрация
@@ -96,6 +117,16 @@ export default function LoginScreen() {
           onChangeText={setPassword}
           secureTextEntry
         />
+        {mode === "register" && (
+          <TextInput
+            style={styles.input}
+            placeholder="Подтвердите пароль"
+            placeholderTextColor="#666"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+        )}
 
         {/* Feedback */}
         {error && <Text style={styles.errorText}>{error}</Text>}
@@ -117,22 +148,6 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>или</Text>
-          <View style={styles.divider} />
-        </View>
-
-        {/* Guest */}
-        <TouchableOpacity
-          style={styles.guestBtn}
-          onPress={continueAsGuest}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.guestBtnText}>Продолжить без аккаунта</Text>
-        </TouchableOpacity>
-        <Text style={styles.guestNote}>Watchlist будет сохранён только на этом устройстве</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -201,23 +216,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   submitBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-    gap: 10,
-  },
-  divider: { flex: 1, height: 1, backgroundColor: "#2a2a2a" },
-  dividerText: { fontSize: 13, color: "#555" },
-
-  guestBtn: {
-    borderWidth: 1,
-    borderColor: "#333",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  guestBtnText: { fontSize: 15, fontWeight: "600", color: "#aaa" },
-  guestNote: { fontSize: 11, color: "#555", textAlign: "center", marginTop: 8 },
 });
