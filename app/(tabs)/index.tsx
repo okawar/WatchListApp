@@ -35,9 +35,14 @@ export default function HomeScreen() {
       activeOpacity={0.7}
     >
       <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.poster} />
-      <ThemedText style={styles.movieTitle} numberOfLines={3}>
-        {item.title}
-      </ThemedText>
+      <View style={styles.movieInfo}>
+        <ThemedText style={styles.movieTitle} numberOfLines={1}>
+          {item.title}
+        </ThemedText>
+        <ThemedText style={styles.movieOverview} numberOfLines={2} ellipsizeMode="tail">
+          {item.overview}
+        </ThemedText>
+      </View>
       <TouchableOpacity
         style={[styles.addButton, isInWatchlist(item.id) && styles.addButtonActive]}
         onPress={() => toggleWatchlist(item)}
@@ -55,18 +60,20 @@ export default function HomeScreen() {
       onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
       activeOpacity={0.7}
     >
-      <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.gridPoster} />
-      <ThemedText style={styles.gridTitle} numberOfLines={2}>
+      <View style={styles.gridPosterWrap}>
+        <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.gridPoster} />
+        <TouchableOpacity
+          style={[styles.gridAddButton, isInWatchlist(item.id) && styles.addButtonActive]}
+          onPress={() => toggleWatchlist(item)}
+        >
+          <ThemedText style={styles.gridAddButtonText}>
+            {isInWatchlist(item.id) ? "✓" : "+"}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+      <ThemedText style={styles.gridTitle} numberOfLines={1}>
         {item.title}
       </ThemedText>
-      <TouchableOpacity
-        style={[styles.addButton, isInWatchlist(item.id) && styles.addButtonActive]}
-        onPress={() => toggleWatchlist(item)}
-      >
-        <ThemedText style={styles.addButtonText}>
-          {isInWatchlist(item.id) ? "✓" : "+"}
-        </ThemedText>
-      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -151,7 +158,7 @@ export default function HomeScreen() {
             key={viewMode}
             keyExtractor={(item) => item.id.toString()}
             renderItem={viewMode === "grid" ? renderGridItem : renderListItem}
-            numColumns={viewMode === "grid" ? 2 : 1}
+            numColumns={viewMode === "grid" ? 4 : 1}
             columnWrapperStyle={viewMode === "grid" ? styles.columnWrapper : undefined}
             showsVerticalScrollIndicator={false}
           />
@@ -267,48 +274,77 @@ const styles = StyleSheet.create({
   movieItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    gap: 12,
+    paddingVertical: 5,
+    gap: 10,
   },
   poster: {
-    width: 80,
-    height: 120,
-    borderRadius: 6,
+    width: 44,
+    height: 66,
+    borderRadius: 4,
     backgroundColor: "#333",
   },
-  movieTitle: {
+  movieInfo: {
     flex: 1,
-    fontSize: 16,
+    gap: 3,
+  },
+  movieTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  movieOverview: {
+    fontSize: 11,
+    color: "#999",
+    lineHeight: 15,
   },
 
   // Grid mode
   columnWrapper: {
-    gap: 12,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 8,
   },
   gridItem: {
     flex: 1,
     alignItems: "center",
   },
+  gridPosterWrap: {
+    width: "100%",
+    position: "relative",
+  },
   gridPoster: {
     width: "100%",
     aspectRatio: 2 / 3,
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: "#333",
   },
+  gridAddButton: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gridAddButtonText: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#fff",
+    lineHeight: 16,
+  },
   gridTitle: {
-    fontSize: 12,
-    marginTop: 4,
-    marginBottom: 6,
+    fontSize: 10,
+    marginTop: 3,
     textAlign: "center",
     width: "100%",
   },
 
   // Shared
   addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#444",
     alignItems: "center",
     justifyContent: "center",
@@ -317,8 +353,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#2ecc71",
   },
   addButtonText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    lineHeight: 24,
+    lineHeight: 22,
   },
 });
