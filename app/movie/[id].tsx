@@ -1,16 +1,14 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { WebView } from "react-native-webview";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -35,7 +33,6 @@ export default function MovieScreen() {
   const [movie, setMovie] = useState<Movie | null>(null);
   const [credits, setCredits] = useState<Credits | null>(null);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
-  const [showTrailer, setShowTrailer] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
@@ -105,7 +102,11 @@ export default function MovieScreen() {
           {trailerKey && (
             <TouchableOpacity
               style={styles.trailerBtn}
-              onPress={() => setShowTrailer(true)}
+              onPress={() =>
+                WebBrowser.openBrowserAsync(
+                  `https://www.youtube.com/watch?v=${trailerKey}`,
+                )
+              }
               activeOpacity={0.8}
             >
               <ThemedText style={styles.trailerBtnText}>▶  Смотреть трейлер</ThemedText>
@@ -177,31 +178,6 @@ export default function MovieScreen() {
         </ThemedView>
       </ScrollView>
 
-      {/* Trailer modal */}
-      <Modal
-        visible={showTrailer}
-        animationType="slide"
-        onRequestClose={() => setShowTrailer(false)}
-        statusBarTranslucent
-      >
-        <View style={styles.trailerModal}>
-          <TouchableOpacity
-            style={styles.trailerCloseBtn}
-            onPress={() => setShowTrailer(false)}
-          >
-            <Text style={styles.trailerCloseBtnText}>✕  Закрыть</Text>
-          </TouchableOpacity>
-          <WebView
-            source={{
-              uri: `https://www.youtube.com/embed/${trailerKey}?autoplay=1&rel=0&playsinline=1`,
-            }}
-            style={{ flex: 1, backgroundColor: "#000" }}
-            allowsFullscreenVideo
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled
-          />
-        </View>
-      </Modal>
     </>
   );
 }
@@ -259,13 +235,4 @@ const styles = StyleSheet.create({
   actorName: { fontSize: 13, fontWeight: "600" },
   character: { fontSize: 12, opacity: 0.6 },
 
-  // Trailer modal
-  trailerModal: { flex: 1, backgroundColor: "#000" },
-  trailerCloseBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    backgroundColor: "#111",
-  },
-  trailerCloseBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 });
