@@ -9,10 +9,13 @@ import { Movie } from "@/types/movie";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
 
+type ViewMode = "grid" | "list";
+
 export default function HomeScreen() {
   const router = useRouter();
   const [query, setQuery] = useState<string>("");
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const { movies, error, isLoading, search } = useSearch();
 
   const isInWatchlist = (id: number) => watchlist.some((m) => m.id === id);
@@ -25,17 +28,35 @@ export default function HomeScreen() {
     );
   };
 
-  const renderSearchItem = ({ item }: { item: Movie }) => (
+  const renderListItem = ({ item }: { item: Movie }) => (
     <TouchableOpacity
       style={styles.movieItem}
       onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
       activeOpacity={0.7}
     >
-      <Image
-        source={{ uri: IMAGE_BASE + item.poster_path }}
-        style={styles.poster}
-      />
+      <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.poster} />
       <ThemedText style={styles.movieTitle} numberOfLines={3}>
+        {item.title}
+      </ThemedText>
+      <TouchableOpacity
+        style={[styles.addButton, isInWatchlist(item.id) && styles.addButtonActive]}
+        onPress={() => toggleWatchlist(item)}
+      >
+        <ThemedText style={styles.addButtonText}>
+          {isInWatchlist(item.id) ? "✓" : "+"}
+        </ThemedText>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+
+  const renderGridItem = ({ item }: { item: Movie }) => (
+    <TouchableOpacity
+      style={styles.gridItem}
+      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
+      activeOpacity={0.7}
+    >
+      <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.gridPoster} />
+      <ThemedText style={styles.gridTitle} numberOfLines={2}>
         {item.title}
       </ThemedText>
       <TouchableOpacity
@@ -66,9 +87,12 @@ export default function HomeScreen() {
         }}
       />
 
-      {watchlist.length > 0 && query.length === 0 && (
-        <View style={styles.watchlistSection}>
-          <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
+      {/* Watchlist section — always visible */}
+      <View style={styles.watchlistSection}>
+        <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
+        {watchlist.length === 0 ? (
+          <ThemedText style={styles.emptyText}>Список пуст</ThemedText>
+        ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.watchlistRow}>
               {watchlist.map((movie) => (
@@ -95,18 +119,43 @@ export default function HomeScreen() {
               ))}
             </View>
           </ScrollView>
-        </View>
-      )}
+        )}
+      </View>
 
-      {isLoading && <ThemedText>Загрузка...</ThemedText>}
-      {error && <ThemedText>{error}</ThemedText>}
-
+      {/* Search results */}
       {query.length > 0 && (
-        <FlatList
-          data={movies}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderSearchItem}
-        />
+        <View style={styles.searchSection}>
+          <View style={styles.searchHeader}>
+            <ThemedText style={styles.sectionTitle}>Результаты</ThemedText>
+            <View style={styles.viewToggle}>
+              <TouchableOpacity
+                style={[styles.toggleButton, viewMode === "grid" && styles.toggleButtonActive]}
+                onPress={() => setViewMode("grid")}
+              >
+                <ThemedText style={styles.toggleIcon}>⊞</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, viewMode === "list" && styles.toggleButtonActive]}
+                onPress={() => setViewMode("list")}
+              >
+                <ThemedText style={styles.toggleIcon}>☰</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {isLoading && <ThemedText style={styles.statusText}>Загрузка...</ThemedText>}
+          {error && <ThemedText style={styles.statusText}>{error}</ThemedText>}
+
+          <FlatList
+            data={movies}
+            key={viewMode}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={viewMode === "grid" ? renderGridItem : renderListItem}
+            numColumns={viewMode === "grid" ? 2 : 1}
+            columnWrapperStyle={viewMode === "grid" ? styles.columnWrapper : undefined}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
       )}
     </ThemedView>
   );
@@ -130,6 +179,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: "#000",
   },
+
+  // Watchlist
   watchlistSection: {
     marginBottom: 16,
   },
@@ -137,6 +188,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
+  },
+  emptyText: {
+    color: "#888",
+    fontSize: 14,
+    marginBottom: 4,
   },
   watchlistRow: {
     flexDirection: "row",
@@ -173,6 +229,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+
+  // Search section
+  searchSection: {
+    flex: 1,
+  },
+  searchHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  viewToggle: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  toggleButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toggleButtonActive: {
+    backgroundColor: "#2ecc71",
+  },
+  toggleIcon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  statusText: {
+    marginBottom: 8,
+  },
+
+  // List mode
   movieItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -187,8 +278,33 @@ const styles = StyleSheet.create({
   },
   movieTitle: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 16,
   },
+
+  // Grid mode
+  columnWrapper: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  gridItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  gridPoster: {
+    width: "100%",
+    aspectRatio: 2 / 3,
+    borderRadius: 8,
+    backgroundColor: "#333",
+  },
+  gridTitle: {
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 6,
+    textAlign: "center",
+    width: "100%",
+  },
+
+  // Shared
   addButton: {
     width: 36,
     height: 36,
