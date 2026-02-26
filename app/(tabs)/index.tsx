@@ -1,10 +1,20 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useWatchlist } from "@/context/watchlist-context";
+import { usePopularSection } from "@/hooks/use-popular-section";
 import { useSearch } from "@/hooks/use-search";
 import { Movie } from "@/types/movie";
 
@@ -12,12 +22,95 @@ const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
 
 type ViewMode = "grid" | "list";
 
+// ─── Popular horizontal row ───────────────────────────────────────────────────
+
+function PopularRow({
+  title,
+  items,
+  isLoading,
+  hasMore,
+  onLoadMore,
+}: {
+  title: string;
+  items: Movie[];
+  isLoading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
+}) {
+  const router = useRouter();
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
+
+  return (
+    <View style={styles.popularSection}>
+      <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+      {isLoading && items.length === 0 ? (
+        <ActivityIndicator style={{ marginVertical: 8 }} />
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.popularRow}>
+            {items.map((movie) => (
+              <TouchableOpacity
+                key={movie.id}
+                style={styles.popularItem}
+                activeOpacity={0.75}
+                onPress={() =>
+                  router.push({ pathname: "/movie/[id]", params: { id: movie.id } })
+                }
+              >
+                <View style={styles.popularPosterWrap}>
+                  <Image
+                    source={{ uri: IMAGE_BASE + movie.poster_path }}
+                    style={styles.popularPoster}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.popularAddBtn,
+                      isInWatchlist(movie.id) && styles.addButtonActive,
+                    ]}
+                    onPress={() => toggleWatchlist(movie)}
+                  >
+                    <ThemedText style={styles.popularAddBtnText}>
+                      {isInWatchlist(movie.id) ? "✓" : "+"}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+                <ThemedText style={styles.popularTitle} numberOfLines={2}>
+                  {movie.title}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+
+            {hasMore && (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                onPress={onLoadMore}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <ThemedText style={styles.loadMoreText}>Ещё →</ThemedText>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 export default function HomeScreen() {
   const router = useRouter();
   const [query, setQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const { movies, error, isLoading, search } = useSearch();
+  const { movies, error, isLoading: searchLoading, search } = useSearch();
   const { watchlist, isInWatchlist, toggleWatchlist } = useWatchlist();
+
+  const popularMovies = usePopularSection("movie");
+  const popularTV = usePopularSection("tv");
 
   const renderListItem = ({ item }: { item: Movie }) => (
     <TouchableOpacity
@@ -85,75 +178,138 @@ export default function HomeScreen() {
         }}
       />
 
-      {/* Watchlist section — always visible */}
-      <View style={styles.watchlistSection}>
-        <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
-        {watchlist.length === 0 ? (
-          <ThemedText style={styles.emptyText}>Список пуст</ThemedText>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.watchlistRow}>
-              {watchlist.map((movie) => (
-                <View key={movie.id} style={styles.watchlistItem}>
-                  <TouchableOpacity
-                    onPress={() => router.push({ pathname: "/movie/[id]", params: { id: movie.id } })}
-                    activeOpacity={0.8}
-                  >
-                    <Image
-                      source={{ uri: IMAGE_BASE + movie.poster_path }}
-                      style={styles.watchlistPoster}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => toggleWatchlist(movie)}
-                  >
-                    <ThemedText style={styles.removeButtonText}>✕</ThemedText>
-                  </TouchableOpacity>
-                  <ThemedText style={styles.watchlistTitle} numberOfLines={2}>
-                    {movie.title}
-                  </ThemedText>
+      {query.length === 0 ? (
+        // ── Home state ──
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Watchlist */}
+          <View style={styles.watchlistSection}>
+            <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
+            {watchlist.length === 0 ? (
+              <ThemedText style={styles.emptyText}>Список пуст</ThemedText>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.watchlistRow}>
+                  {watchlist.map((movie) => (
+                    <View key={movie.id} style={styles.watchlistItem}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          router.push({ pathname: "/movie/[id]", params: { id: movie.id } })
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Image
+                          source={{ uri: IMAGE_BASE + movie.poster_path }}
+                          style={styles.watchlistPoster}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => toggleWatchlist(movie)}
+                      >
+                        <ThemedText style={styles.removeButtonText}>✕</ThemedText>
+                      </TouchableOpacity>
+                      <ThemedText style={styles.watchlistTitle} numberOfLines={2}>
+                        {movie.title}
+                      </ThemedText>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-          </ScrollView>
-        )}
-      </View>
-
-      {/* Search results */}
-      {query.length > 0 && (
-        <View style={styles.searchSection}>
-          <View style={styles.searchHeader}>
-            <ThemedText style={styles.sectionTitle}>Результаты</ThemedText>
-            <View style={styles.viewToggle}>
-              <TouchableOpacity
-                style={[styles.toggleButton, viewMode === "grid" && styles.toggleButtonActive]}
-                onPress={() => setViewMode("grid")}
-              >
-                <ThemedText style={styles.toggleIcon}>⊞</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, viewMode === "list" && styles.toggleButtonActive]}
-                onPress={() => setViewMode("list")}
-              >
-                <ThemedText style={styles.toggleIcon}>☰</ThemedText>
-              </TouchableOpacity>
-            </View>
+              </ScrollView>
+            )}
           </View>
 
-          {isLoading && <ThemedText style={styles.statusText}>Загрузка...</ThemedText>}
-          {error && <ThemedText style={styles.statusText}>{error}</ThemedText>}
-
-          <FlatList
-            data={movies}
-            key={viewMode}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={viewMode === "grid" ? renderGridItem : renderListItem}
-            numColumns={viewMode === "grid" ? 4 : 1}
-            columnWrapperStyle={viewMode === "grid" ? styles.columnWrapper : undefined}
-            showsVerticalScrollIndicator={false}
+          {/* Popular movies */}
+          <PopularRow
+            title="Популярные фильмы"
+            items={popularMovies.visibleItems}
+            isLoading={popularMovies.isLoading}
+            hasMore={popularMovies.hasMore}
+            onLoadMore={popularMovies.loadMore}
           />
-        </View>
+
+          {/* Popular TV */}
+          <PopularRow
+            title="Популярные сериалы"
+            items={popularTV.visibleItems}
+            isLoading={popularTV.isLoading}
+            hasMore={popularTV.hasMore}
+            onLoadMore={popularTV.loadMore}
+          />
+        </ScrollView>
+      ) : (
+        // ── Search state ──
+        <>
+          {/* Compact watchlist */}
+          <View style={styles.watchlistSection}>
+            <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
+            {watchlist.length === 0 ? (
+              <ThemedText style={styles.emptyText}>Список пуст</ThemedText>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.watchlistRow}>
+                  {watchlist.map((movie) => (
+                    <View key={movie.id} style={styles.watchlistItem}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          router.push({ pathname: "/movie/[id]", params: { id: movie.id } })
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Image
+                          source={{ uri: IMAGE_BASE + movie.poster_path }}
+                          style={styles.watchlistPoster}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => toggleWatchlist(movie)}
+                      >
+                        <ThemedText style={styles.removeButtonText}>✕</ThemedText>
+                      </TouchableOpacity>
+                      <ThemedText style={styles.watchlistTitle} numberOfLines={2}>
+                        {movie.title}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Search results */}
+          <View style={styles.searchSection}>
+            <View style={styles.searchHeader}>
+              <ThemedText style={styles.sectionTitle}>Результаты</ThemedText>
+              <View style={styles.viewToggle}>
+                <TouchableOpacity
+                  style={[styles.toggleButton, viewMode === "grid" && styles.toggleButtonActive]}
+                  onPress={() => setViewMode("grid")}
+                >
+                  <ThemedText style={styles.toggleIcon}>⊞</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleButton, viewMode === "list" && styles.toggleButtonActive]}
+                  onPress={() => setViewMode("list")}
+                >
+                  <ThemedText style={styles.toggleIcon}>☰</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {searchLoading && <ThemedText style={styles.statusText}>Загрузка...</ThemedText>}
+            {error && <ThemedText style={styles.statusText}>{error}</ThemedText>}
+
+            <FlatList
+              data={movies}
+              key={viewMode}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={viewMode === "grid" ? renderGridItem : renderListItem}
+              numColumns={viewMode === "grid" ? 4 : 1}
+              columnWrapperStyle={viewMode === "grid" ? styles.columnWrapper : undefined}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </>
       )}
     </ThemedView>
   );
@@ -226,6 +382,64 @@ const styles = StyleSheet.create({
   watchlistTitle: {
     fontSize: 12,
     marginTop: 4,
+  },
+
+  // Popular sections
+  popularSection: {
+    marginBottom: 20,
+  },
+  popularRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingBottom: 4,
+    alignItems: "flex-start",
+  },
+  popularItem: {
+    width: 90,
+  },
+  popularPosterWrap: {
+    position: "relative",
+  },
+  popularPoster: {
+    width: 90,
+    height: 135,
+    borderRadius: 8,
+    backgroundColor: "#333",
+  },
+  popularAddBtn: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  popularAddBtnText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#fff",
+    lineHeight: 18,
+  },
+  popularTitle: {
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 15,
+  },
+  loadMoreBtn: {
+    width: 60,
+    height: 135,
+    borderRadius: 8,
+    backgroundColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadMoreText: {
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
   },
 
   // Search section
