@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat app/\\\\\\(tabs\\\\\\)/index.tsx app/\\\\\\(tabs\\\\\\)/explore.tsx app/\\\\\\(tabs\\\\\\)/_layout.tsx app/_layout.tsx)"
+      "Bash(cat app/\\\\\\(tabs\\\\\\)/index.tsx app/\\\\\\(tabs\\\\\\)/explore.tsx app/\\\\\\(tabs\\\\\\)/_layout.tsx app/_layout.tsx)",
+      "Bash(cd C:\\\\Users\\\\Oka\\\\Desktop\\\\prog\\\\pets\\\\WatchListMovie:*)"
     ]
   }
 }

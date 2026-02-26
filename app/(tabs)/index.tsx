@@ -23,8 +23,8 @@ type ViewMode = "grid" | "list";
 export default function HomeScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const { movies, error, isLoading, search } = useSearch();
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const { movies, error, isLoading, search, reset } = useSearch();
   const { watchlist, isInWatchlist, toggleWatchlist } = useWatchlist();
 
   const renderListItem = ({ item }: { item: Movie }) => (
@@ -33,7 +33,7 @@ export default function HomeScreen() {
       onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
       activeOpacity={0.7}
     >
-      <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.listPoster} />
+      <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.poster} />
       <View style={styles.movieInfo}>
         <ThemedText style={styles.movieTitle} numberOfLines={1}>
           {item.title}
@@ -62,10 +62,10 @@ export default function HomeScreen() {
       <View style={styles.gridPosterWrap}>
         <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.gridPoster} />
         <TouchableOpacity
-          style={[styles.gridAddBtn, isInWatchlist(item.id) && styles.addButtonActive]}
+          style={[styles.gridAddButton, isInWatchlist(item.id) && styles.addButtonActive]}
           onPress={() => toggleWatchlist(item)}
         >
-          <ThemedText style={styles.gridAddBtnText}>
+          <ThemedText style={styles.gridAddButtonText}>
             {isInWatchlist(item.id) ? "✓" : "+"}
           </ThemedText>
         </TouchableOpacity>
@@ -82,53 +82,62 @@ export default function HomeScreen() {
         Главная
       </ThemedText>
 
-      <TextInput
-        style={styles.input}
-        value={query}
-        placeholder="Поиск фильмов..."
-        placeholderTextColor="#999"
-        onChangeText={(text) => {
-          setQuery(text);
-          if (text.length > 0) search(text);
-        }}
-      />
+      <View style={styles.inputWrap}>
+        <TextInput
+          style={styles.input}
+          value={query}
+          placeholder="Поиск фильмов и сериалов..."
+          placeholderTextColor="#999"
+          onChangeText={(text) => {
+            setQuery(text);
+            if (text.length > 0) search(text);
+          }}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearBtn}
+            onPress={() => {
+              setQuery("");
+              reset();
+            }}
+          >
+            <ThemedText style={styles.clearBtnText}>✕</ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {query.length === 0 ? (
         // ── Watchlist ──
         <ScrollView showsVerticalScrollIndicator={false}>
           <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
-
           {watchlist.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <ThemedText style={styles.emptyText}>Список пуст</ThemedText>
-              <ThemedText style={styles.emptyHint}>
-                Добавляйте фильмы и сериалы через вкладки ниже
-              </ThemedText>
-            </View>
+            <ThemedText style={styles.emptyText}>
+              Список пуст. Добавляй фильмы и сериалы во вкладках ниже.
+            </ThemedText>
           ) : (
-            <View style={styles.watchGrid}>
+            <View style={styles.watchlistGrid}>
               {watchlist.map((movie) => (
                 <TouchableOpacity
                   key={movie.id}
-                  style={styles.watchCard}
+                  style={styles.watchlistCard}
                   activeOpacity={0.8}
                   onPress={() =>
                     router.push({ pathname: "/movie/[id]", params: { id: movie.id } })
                   }
                 >
-                  <View style={styles.watchPosterWrap}>
+                  <View style={styles.watchlistPosterWrap}>
                     <Image
                       source={{ uri: IMAGE_BASE + movie.poster_path }}
-                      style={styles.watchPoster}
+                      style={styles.watchlistPoster}
                     />
                     <TouchableOpacity
-                      style={styles.removeBtn}
+                      style={styles.removeButton}
                       onPress={() => toggleWatchlist(movie)}
                     >
-                      <ThemedText style={styles.removeBtnText}>✕</ThemedText>
+                      <ThemedText style={styles.removeButtonText}>✕</ThemedText>
                     </TouchableOpacity>
                   </View>
-                  <ThemedText style={styles.watchTitle} numberOfLines={2}>
+                  <ThemedText style={styles.watchlistTitle} numberOfLines={2}>
                     {movie.title}
                   </ThemedText>
                 </TouchableOpacity>
@@ -143,13 +152,13 @@ export default function HomeScreen() {
             <ThemedText style={styles.sectionTitle}>Результаты</ThemedText>
             <View style={styles.viewToggle}>
               <TouchableOpacity
-                style={[styles.toggleBtn, viewMode === "grid" && styles.toggleBtnActive]}
+                style={[styles.toggleButton, viewMode === "grid" && styles.toggleButtonActive]}
                 onPress={() => setViewMode("grid")}
               >
                 <ThemedText style={styles.toggleIcon}>⊞</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.toggleBtn, viewMode === "list" && styles.toggleBtnActive]}
+                style={[styles.toggleButton, viewMode === "list" && styles.toggleButtonActive]}
                 onPress={() => setViewMode("list")}
               >
                 <ThemedText style={styles.toggleIcon}>☰</ThemedText>
@@ -182,55 +191,65 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   title: {
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  inputWrap: {
+    position: "relative",
+    marginBottom: 16,
   },
   input: {
     backgroundColor: "#fff",
     borderRadius: 10,
-    padding: 12,
+    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 40,
     fontSize: 16,
-    marginBottom: 16,
     color: "#000",
   },
+  clearBtn: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clearBtnText: {
+    fontSize: 14,
+    color: "#999",
+    fontWeight: "bold",
+  },
+
+  // Watchlist grid
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 12,
   },
-
-  // Watchlist grid
-  emptyWrap: {
-    alignItems: "center",
-    marginTop: 40,
-    gap: 8,
-  },
   emptyText: {
-    fontSize: 16,
     color: "#888",
+    fontSize: 14,
+    lineHeight: 20,
   },
-  emptyHint: {
-    fontSize: 13,
-    color: "#666",
-    textAlign: "center",
-  },
-  watchGrid: {
+  watchlistGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
   },
-  watchCard: {
+  watchlistCard: {
     width: "47%",
   },
-  watchPosterWrap: {
+  watchlistPosterWrap: {
     position: "relative",
   },
-  watchPoster: {
+  watchlistPoster: {
     width: "100%",
     aspectRatio: 2 / 3,
     borderRadius: 10,
     backgroundColor: "#333",
   },
-  removeBtn: {
+  removeButton: {
     position: "absolute",
     top: 6,
     right: 6,
@@ -241,18 +260,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  removeBtnText: {
+  removeButtonText: {
     fontSize: 12,
     color: "#fff",
     fontWeight: "bold",
   },
-  watchTitle: {
+  watchlistTitle: {
     fontSize: 13,
     marginTop: 6,
     lineHeight: 18,
   },
 
-  // Search
+  // Search section
   searchSection: {
     flex: 1,
   },
@@ -266,7 +285,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 6,
   },
-  toggleBtn: {
+  toggleButton: {
     width: 36,
     height: 36,
     borderRadius: 8,
@@ -274,7 +293,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  toggleBtnActive: {
+  toggleButtonActive: {
     backgroundColor: "#2ecc71",
   },
   toggleIcon: {
@@ -283,7 +302,6 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginBottom: 8,
-    color: "#888",
   },
 
   // List mode
@@ -293,7 +311,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     gap: 10,
   },
-  listPoster: {
+  poster: {
     width: 44,
     height: 66,
     borderRadius: 4,
@@ -312,24 +330,8 @@ const styles = StyleSheet.create({
     color: "#999",
     lineHeight: 15,
   },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#444",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonActive: {
-    backgroundColor: "#2ecc71",
-  },
-  addButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    lineHeight: 22,
-  },
 
-  // Grid mode (4 columns)
+  // Grid mode
   columnWrapper: {
     gap: 6,
     marginBottom: 8,
@@ -348,7 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#333",
   },
-  gridAddBtn: {
+  gridAddButton: {
     position: "absolute",
     top: 4,
     right: 4,
@@ -359,7 +361,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  gridAddBtnText: {
+  gridAddButtonText: {
     fontSize: 13,
     fontWeight: "bold",
     color: "#fff",
@@ -370,5 +372,23 @@ const styles = StyleSheet.create({
     marginTop: 3,
     textAlign: "center",
     width: "100%",
+  },
+
+  // Shared
+  addButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addButtonActive: {
+    backgroundColor: "#2ecc71",
+  },
+  addButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    lineHeight: 22,
   },
 });

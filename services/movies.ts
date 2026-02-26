@@ -28,3 +28,23 @@ export const getTopRatedTV = async (page = 1) => fetchData(`/tv/top_rated?page=$
 export const getOnAirTV = async (page = 1) => fetchData(`/tv/on_the_air?page=${page}`);
 export const searchMulti = async (query: string) =>
   fetchData(`/search/multi?query=${encodeURIComponent(query)}`);
+
+export const discoverMoviesAdvanced = async (params: {
+  sort_by: string;
+  year: number | null;
+  country: string | null;
+  min_rating: number | null;
+  genre: number | null;
+  page: number;
+}) => {
+  const parts: string[] = [`sort_by=${params.sort_by}`];
+  if (params.year) parts.push(`primary_release_year=${params.year}`);
+  if (params.country) parts.push(`with_origin_country=${params.country}`);
+  if (params.min_rating) {
+    parts.push(`vote_average.gte=${params.min_rating}`);
+    parts.push(`vote_count.gte=100`);
+  }
+  if (params.genre) parts.push(`with_genres=${params.genre}`);
+  parts.push(`page=${params.page}`);
+  return fetchData(`/discover/movie?${parts.join("&")}`);
+};
