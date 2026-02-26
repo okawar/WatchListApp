@@ -1,9 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useWatchlist } from "@/context/watchlist-context";
 import { getMovieCredits, getMovieDetails } from "@/services/movies";
 import { CastMember, Credits, CrewMember, Movie } from "@/types/movie";
 
@@ -15,6 +16,7 @@ export default function MovieScreen() {
   const [movie, setMovie] = useState<Movie | null>(null);
   const [credits, setCredits] = useState<Credits | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const load = async () => {
@@ -66,6 +68,16 @@ export default function MovieScreen() {
             {movie.release_date?.slice(0, 4)}
           </ThemedText>
         </View>
+
+        <TouchableOpacity
+          style={[styles.watchlistButton, isInWatchlist(movie.id) && styles.watchlistButtonActive]}
+          onPress={() => toggleWatchlist(movie)}
+          activeOpacity={0.8}
+        >
+          <ThemedText style={styles.watchlistButtonText}>
+            {isInWatchlist(movie.id) ? "✓ В списке" : "+ В мой список"}
+          </ThemedText>
+        </TouchableOpacity>
 
         <ThemedText style={styles.section}>О фильме</ThemedText>
         <ThemedText style={styles.overview}>{movie.overview}</ThemedText>
@@ -137,6 +149,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     marginBottom: 16,
+  },
+  watchlistButton: {
+    backgroundColor: "#444",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  watchlistButtonActive: {
+    backgroundColor: "#2ecc71",
+  },
+  watchlistButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
   rating: {
     fontSize: 18,

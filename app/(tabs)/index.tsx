@@ -4,6 +4,7 @@ import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, V
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useWatchlist } from "@/context/watchlist-context";
 import { useSearch } from "@/hooks/use-search";
 import { Movie } from "@/types/movie";
 
@@ -14,19 +15,9 @@ type ViewMode = "grid" | "list";
 export default function HomeScreen() {
   const router = useRouter();
   const [query, setQuery] = useState<string>("");
-  const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const { movies, error, isLoading, search } = useSearch();
-
-  const isInWatchlist = (id: number) => watchlist.some((m) => m.id === id);
-
-  const toggleWatchlist = (movie: Movie) => {
-    setWatchlist((prev) =>
-      isInWatchlist(movie.id)
-        ? prev.filter((m) => m.id !== movie.id)
-        : [...prev, movie]
-    );
-  };
+  const { watchlist, isInWatchlist, toggleWatchlist } = useWatchlist();
 
   const renderListItem = ({ item }: { item: Movie }) => (
     <TouchableOpacity
