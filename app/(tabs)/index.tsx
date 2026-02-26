@@ -22,7 +22,7 @@ const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
 
 type ViewMode = "grid" | "list";
 
-// ─── Popular horizontal row ───────────────────────────────────────────────────
+// ─── Popular vertical grid ────────────────────────────────────────────────────
 
 function PopularRow({
   title,
@@ -43,11 +43,12 @@ function PopularRow({
   return (
     <View style={styles.popularSection}>
       <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+
       {isLoading && items.length === 0 ? (
-        <ActivityIndicator style={{ marginVertical: 8 }} />
+        <ActivityIndicator style={{ marginVertical: 16 }} />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.popularRow}>
+        <>
+          <View style={styles.popularGrid}>
             {items.map((movie) => (
               <TouchableOpacity
                 key={movie.id}
@@ -79,22 +80,22 @@ function PopularRow({
                 </ThemedText>
               </TouchableOpacity>
             ))}
-
-            {hasMore && (
-              <TouchableOpacity
-                style={styles.loadMoreBtn}
-                onPress={onLoadMore}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <ThemedText style={styles.loadMoreText}>Ещё →</ThemedText>
-                )}
-              </TouchableOpacity>
-            )}
           </View>
-        </ScrollView>
+
+          {hasMore && (
+            <TouchableOpacity
+              style={styles.loadMoreBtn}
+              onPress={onLoadMore}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <ThemedText style={styles.loadMoreText}>Загрузить ещё</ThemedText>
+              )}
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );
@@ -386,60 +387,57 @@ const styles = StyleSheet.create({
 
   // Popular sections
   popularSection: {
-    marginBottom: 20,
+    marginBottom: 28,
   },
-  popularRow: {
+  popularGrid: {
     flexDirection: "row",
-    gap: 10,
-    paddingBottom: 4,
-    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: 12,
   },
   popularItem: {
-    width: 90,
+    width: "47%",
   },
   popularPosterWrap: {
     position: "relative",
   },
   popularPoster: {
-    width: 90,
-    height: 135,
-    borderRadius: 8,
+    width: "100%",
+    aspectRatio: 2 / 3,
+    borderRadius: 10,
     backgroundColor: "#333",
   },
   popularAddBtn: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "rgba(0,0,0,0.65)",
     alignItems: "center",
     justifyContent: "center",
   },
   popularAddBtnText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#fff",
-    lineHeight: 18,
+    lineHeight: 20,
   },
   popularTitle: {
-    fontSize: 11,
-    marginTop: 4,
-    lineHeight: 15,
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
   },
   loadMoreBtn: {
-    width: 60,
-    height: 135,
-    borderRadius: 8,
+    marginTop: 12,
+    paddingVertical: 13,
+    borderRadius: 10,
     backgroundColor: "#333",
     alignItems: "center",
-    justifyContent: "center",
   },
   loadMoreText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    textAlign: "center",
   },
 
   // Search section
