@@ -1,39 +1,113 @@
-import { FlatList, StyleSheet, TargetedEvent, TextInput } from "react-native";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { useTrending } from "@/hooks/use-trending";
-import { useState } from "react";
 import { useSearch } from "@/hooks/use-search";
+import { Movie } from "@/types/movie";
+
+const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
 
 export default function HomeScreen() {
-  const [query, setQuery] = useState<string>('')
+  const router = useRouter();
+  const [query, setQuery] = useState<string>("");
+  const [watchlist, setWatchlist] = useState<Movie[]>([]);
+  const { movies, error, isLoading, search } = useSearch();
 
-  const trending = useTrending()
-  const searchResult = useSearch()
+  const isInWatchlist = (id: number) => watchlist.some((m) => m.id === id);
 
-  const isSearching = query.length > 0
+  const toggleWatchlist = (movie: Movie) => {
+    setWatchlist((prev) =>
+      isInWatchlist(movie.id)
+        ? prev.filter((m) => m.id !== movie.id)
+        : [...prev, movie]
+    );
+  };
 
-  const {movies, error, isLoading} = isSearching ? searchResult : trending
+  const renderSearchItem = ({ item }: { item: Movie }) => (
+    <TouchableOpacity
+      style={styles.movieItem}
+      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id } })}
+      activeOpacity={0.7}
+    >
+      <Image
+        source={{ uri: IMAGE_BASE + item.poster_path }}
+        style={styles.poster}
+      />
+      <ThemedText style={styles.movieTitle} numberOfLines={3}>
+        {item.title}
+      </ThemedText>
+      <TouchableOpacity
+        style={[styles.addButton, isInWatchlist(item.id) && styles.addButtonActive]}
+        onPress={() => toggleWatchlist(item)}
+      >
+        <ThemedText style={styles.addButtonText}>
+          {isInWatchlist(item.id) ? "✓" : "+"}
+        </ThemedText>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">WatchList</ThemedText>
+      <ThemedText type="title" style={styles.title}>
+        Фильмы
+      </ThemedText>
+
       <TextInput
-        style={{backgroundColor: "#fff"}}
+        style={styles.input}
         value={query}
+        placeholder="Поиск фильмов..."
+        placeholderTextColor="#999"
         onChangeText={(text) => {
-          setQuery(text)
-          if (text.length > 0) searchResult.search(text)
+          setQuery(text);
+          if (text.length > 0) search(text);
         }}
-      ></TextInput>
-      <ThemedText>{isLoading ? "Загрузка..." : ""}</ThemedText>
-      <ThemedText>{error}</ThemedText>
-      <FlatList
-        data={movies}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <ThemedText>{item.title}</ThemedText>}
       />
+
+      {watchlist.length > 0 && query.length === 0 && (
+        <View style={styles.watchlistSection}>
+          <ThemedText style={styles.sectionTitle}>Мой список</ThemedText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.watchlistRow}>
+              {watchlist.map((movie) => (
+                <View key={movie.id} style={styles.watchlistItem}>
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: "/movie/[id]", params: { id: movie.id } })}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{ uri: IMAGE_BASE + movie.poster_path }}
+                      style={styles.watchlistPoster}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => toggleWatchlist(movie)}
+                  >
+                    <ThemedText style={styles.removeButtonText}>✕</ThemedText>
+                  </TouchableOpacity>
+                  <ThemedText style={styles.watchlistTitle} numberOfLines={2}>
+                    {movie.title}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      )}
+
+      {isLoading && <ThemedText>Загрузка...</ThemedText>}
+      {error && <ThemedText>{error}</ThemedText>}
+
+      {query.length > 0 && (
+        <FlatList
+          data={movies}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderSearchItem}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -41,7 +115,94 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 16,
+  },
+  title: {
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    width: "100%",
+    marginBottom: 16,
+    color: "#000",
+  },
+  watchlistSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  watchlistRow: {
+    flexDirection: "row",
+    gap: 12,
+    paddingBottom: 4,
+  },
+  watchlistItem: {
+    width: 100,
+    position: "relative",
+  },
+  watchlistPoster: {
+    width: 100,
+    height: 150,
+    borderRadius: 8,
+    backgroundColor: "#333",
+  },
+  removeButton: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.6)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  removeButtonText: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  watchlistTitle: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  movieItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    gap: 12,
+  },
+  poster: {
+    width: 80,
+    height: 120,
+    borderRadius: 6,
+    backgroundColor: "#333",
+  },
+  movieTitle: {
+    flex: 1,
+    fontSize: 18,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addButtonActive: {
+    backgroundColor: "#2ecc71",
+  },
+  addButtonText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    lineHeight: 24,
   },
 });
