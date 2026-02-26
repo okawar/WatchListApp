@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,21 +13,21 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useWatchlist } from "@/context/watchlist-context";
-import { useMovieDiscover } from "@/hooks/use-movie-discover";
+import { useMediaDiscover } from "@/hooks/use-media-discover";
 import { useMediaSection } from "@/hooks/use-media-section";
 import { getMovieGenres } from "@/services/movies";
 import { Movie } from "@/types/movie";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
 
-const FILTERS = [
+const CATEGORY_FILTERS = [
   { label: "Тренды", value: "trending" },
   { label: "Популярные", value: "popular" },
   { label: "Топ рейтинг", value: "top_rated" },
   { label: "Скоро в кино", value: "upcoming" },
 ] as const;
 
-type MovieCategory = (typeof FILTERS)[number]["value"];
+type MovieCategory = (typeof CATEGORY_FILTERS)[number]["value"];
 
 const SORT_OPTIONS = [
   { label: "Популярные", value: "popularity.desc" },
@@ -61,11 +62,50 @@ interface Genre {
   name: string;
 }
 
+function FilterChips<T extends string | number>({
+  options,
+  selected,
+  onSelect,
+  getLabel,
+  getValue,
+}: {
+  options: { label: string; value: T }[];
+  selected: T | null;
+  onSelect: (v: T | null) => void;
+  getLabel?: (v: { label: string; value: T }) => string;
+  getValue?: (v: { label: string; value: T }) => T;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filterRowContent}
+    >
+      {options.map((opt) => {
+        const val = getValue ? getValue(opt) : opt.value;
+        const lbl = getLabel ? getLabel(opt) : opt.label;
+        const active = selected === val;
+        return (
+          <TouchableOpacity
+            key={String(val)}
+            style={[styles.smallChip, active && styles.smallChipActive]}
+            onPress={() => onSelect(active ? null : val)}
+          >
+            <ThemedText style={[styles.smallChipText, active && styles.smallChipTextActive]}>
+              {lbl}
+            </ThemedText>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 export default function MoviesScreen() {
   const router = useRouter();
+  const flatListRef = useRef<FlatList>(null);
 
   const [category, setCategory] = useState<MovieCategory>("trending");
-
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [year, setYear] = useState<number | null>(null);
@@ -96,7 +136,15 @@ export default function MoviesScreen() {
   }, []);
 
   const sectionData = useMediaSection("movie", category);
-  const discoverData = useMovieDiscover(sortBy, year, country, minRating, genreId, hasFilter);
+  const discoverData = useMediaDiscover(
+    "movie",
+    sortBy,
+    year,
+    country,
+    minRating,
+    genreId,
+    hasFilter,
+  );
 
   const { visibleItems, isLoading, loadMore, hasMore } = hasFilter ? discoverData : sectionData;
 
@@ -108,8 +156,34 @@ export default function MoviesScreen() {
     setGenreId(null);
   };
 
-  return (
-    <ThemedView style={styles.container}>
+  const renderCard = ({ item: movie }: { item: Movie }) => (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.75}
+      onPress={() => router.push({ pathname: "/movie/[id]", params: { id: movie.id } })}
+    >
+      <View style={styles.posterWrap}>
+        <Image source={{ uri: IMAGE_BASE + movie.poster_path }} style={styles.poster} />
+        <TouchableOpacity
+          style={[styles.addBtn, isInWatchlist(movie.id) && styles.addBtnActive]}
+          onPress={() => toggleWatchlist(movie)}
+        >
+          <ThemedText style={styles.addBtnText}>
+            {isInWatchlist(movie.id) ? "✓" : "+"}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+      <ThemedText style={styles.cardTitle} numberOfLines={2}>
+        {movie.title}
+      </ThemedText>
+      {movie.release_date ? (
+        <ThemedText style={styles.cardYear}>{movie.release_date.slice(0, 4)}</ThemedText>
+      ) : null}
+    </TouchableOpacity>
+  );
+
+  const header = (
+    <View>
       <ThemedText type="title" style={styles.title}>
         Фильмы
       </ThemedText>
@@ -118,10 +192,10 @@ export default function MoviesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.filtersScroll}
-        contentContainerStyle={styles.filtersContent}
+        style={styles.chipsScroll}
+        contentContainerStyle={styles.chipsContent}
       >
-        {FILTERS.map((f) => (
+        {CATEGORY_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.value}
             style={[styles.chip, !hasFilter && category === f.value && styles.chipActive]}
@@ -137,151 +211,46 @@ export default function MoviesScreen() {
       </ScrollView>
 
       {/* Toggle advanced filters */}
-      <View style={styles.filterToggleRow}>
-        <TouchableOpacity
-          style={[styles.filterToggleBtn, (showFilters || hasFilter) && styles.filterToggleBtnActive]}
-          onPress={() => setShowFilters((v) => !v)}
+      <TouchableOpacity
+        style={[styles.filterToggleBtn, (showFilters || hasFilter) && styles.filterToggleBtnActive]}
+        onPress={() => setShowFilters((v) => !v)}
+      >
+        <ThemedText
+          style={[
+            styles.filterToggleText,
+            (showFilters || hasFilter) && styles.filterToggleTextActive,
+          ]}
         >
-          <ThemedText
-            style={[
-              styles.filterToggleText,
-              (showFilters || hasFilter) && styles.filterToggleTextActive,
-            ]}
-          >
-            {activeFilterCount > 0 ? `Фильтры (${activeFilterCount}) ` : "Фильтры "}
-            {showFilters ? "▲" : "▼"}
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
+          {activeFilterCount > 0 ? `Фильтры (${activeFilterCount}) ` : "Фильтры "}
+          {showFilters ? "▲" : "▼"}
+        </ThemedText>
+      </TouchableOpacity>
 
-      {/* Advanced filters section */}
+      {/* Advanced filter rows */}
       {showFilters && (
         <View style={styles.filterSection}>
-          {/* Sort */}
-          <View style={styles.filterRow}>
-            <ThemedText style={styles.filterLabel}>Сортировка</ThemedText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRowContent}
-            >
-              {SORT_OPTIONS.map((s) => (
-                <TouchableOpacity
-                  key={s.value}
-                  style={[styles.smallChip, sortBy === s.value && styles.smallChipActive]}
-                  onPress={() => setSortBy(s.value)}
-                >
-                  <ThemedText
-                    style={[styles.smallChipText, sortBy === s.value && styles.smallChipTextActive]}
-                  >
-                    {s.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <ThemedText style={styles.filterLabel}>Сортировка</ThemedText>
+          <FilterChips options={SORT_OPTIONS} selected={sortBy} onSelect={(v) => setSortBy(v ?? "popularity.desc")} />
 
-          {/* Year */}
-          <View style={styles.filterRow}>
-            <ThemedText style={styles.filterLabel}>Год</ThemedText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRowContent}
-            >
-              {YEARS.map((y) => (
-                <TouchableOpacity
-                  key={y}
-                  style={[styles.smallChip, year === y && styles.smallChipActive]}
-                  onPress={() => setYear(year === y ? null : y)}
-                >
-                  <ThemedText
-                    style={[styles.smallChipText, year === y && styles.smallChipTextActive]}
-                  >
-                    {y}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <ThemedText style={[styles.filterLabel, styles.filterLabelTop]}>Год</ThemedText>
+          <FilterChips
+            options={YEARS.map((y) => ({ label: String(y), value: y }))}
+            selected={year}
+            onSelect={setYear}
+          />
 
-          {/* Country */}
-          <View style={styles.filterRow}>
-            <ThemedText style={styles.filterLabel}>Страна</ThemedText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRowContent}
-            >
-              {COUNTRIES.map((c) => (
-                <TouchableOpacity
-                  key={c.value}
-                  style={[styles.smallChip, country === c.value && styles.smallChipActive]}
-                  onPress={() => setCountry(country === c.value ? null : c.value)}
-                >
-                  <ThemedText
-                    style={[
-                      styles.smallChipText,
-                      country === c.value && styles.smallChipTextActive,
-                    ]}
-                  >
-                    {c.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <ThemedText style={[styles.filterLabel, styles.filterLabelTop]}>Страна</ThemedText>
+          <FilterChips options={COUNTRIES} selected={country} onSelect={setCountry} />
 
-          {/* Rating */}
-          <View style={styles.filterRow}>
-            <ThemedText style={styles.filterLabel}>Рейтинг</ThemedText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRowContent}
-            >
-              {RATINGS.map((r) => (
-                <TouchableOpacity
-                  key={r.value}
-                  style={[styles.smallChip, minRating === r.value && styles.smallChipActive]}
-                  onPress={() => setMinRating(minRating === r.value ? null : r.value)}
-                >
-                  <ThemedText
-                    style={[
-                      styles.smallChipText,
-                      minRating === r.value && styles.smallChipTextActive,
-                    ]}
-                  >
-                    {r.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <ThemedText style={[styles.filterLabel, styles.filterLabelTop]}>Рейтинг</ThemedText>
+          <FilterChips options={RATINGS} selected={minRating} onSelect={setMinRating} />
 
-          {/* Genre */}
-          <View style={styles.filterRow}>
-            <ThemedText style={styles.filterLabel}>Жанр</ThemedText>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRowContent}
-            >
-              {genres.map((g) => (
-                <TouchableOpacity
-                  key={g.id}
-                  style={[styles.smallChip, genreId === g.id && styles.smallChipActive]}
-                  onPress={() => setGenreId(genreId === g.id ? null : g.id)}
-                >
-                  <ThemedText
-                    style={[styles.smallChipText, genreId === g.id && styles.smallChipTextActive]}
-                  >
-                    {g.name}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <ThemedText style={[styles.filterLabel, styles.filterLabelTop]}>Жанр</ThemedText>
+          <FilterChips
+            options={genres.map((g) => ({ label: g.name, value: g.id }))}
+            selected={genreId}
+            onSelect={setGenreId}
+          />
 
           {hasFilter && (
             <TouchableOpacity style={styles.clearFiltersBtn} onPress={clearFilters}>
@@ -291,76 +260,62 @@ export default function MoviesScreen() {
         </View>
       )}
 
-      {/* Grid */}
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.gridScroll}>
-        {isLoading && visibleItems.length === 0 ? (
-          <ActivityIndicator style={{ marginTop: 40 }} />
-        ) : (
-          <>
-            <View style={styles.grid}>
-              {visibleItems.map((movie: Movie) => (
-                <TouchableOpacity
-                  key={movie.id}
-                  style={styles.card}
-                  activeOpacity={0.75}
-                  onPress={() =>
-                    router.push({ pathname: "/movie/[id]", params: { id: movie.id } })
-                  }
-                >
-                  <View style={styles.posterWrap}>
-                    <Image
-                      source={{ uri: IMAGE_BASE + movie.poster_path }}
-                      style={styles.poster}
-                    />
-                    <TouchableOpacity
-                      style={[styles.addBtn, isInWatchlist(movie.id) && styles.addBtnActive]}
-                      onPress={() => toggleWatchlist(movie)}
-                    >
-                      <ThemedText style={styles.addBtnText}>
-                        {isInWatchlist(movie.id) ? "✓" : "+"}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </View>
-                  <ThemedText style={styles.cardTitle} numberOfLines={2}>
-                    {movie.title}
-                  </ThemedText>
-                  {movie.release_date ? (
-                    <ThemedText style={styles.cardYear}>
-                      {movie.release_date.slice(0, 4)}
-                    </ThemedText>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
+      {isLoading && visibleItems.length === 0 && (
+        <ActivityIndicator style={{ marginTop: 40 }} />
+      )}
+    </View>
+  );
 
-            {isLoading && <ActivityIndicator style={{ marginVertical: 16 }} />}
-
+  return (
+    <ThemedView style={styles.container}>
+      <FlatList
+        ref={flatListRef}
+        data={visibleItems}
+        key={category}
+        keyExtractor={(item) => item.id.toString()}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        renderItem={renderCard}
+        ListHeaderComponent={header}
+        ListFooterComponent={
+          <View style={styles.footer}>
+            {isLoading && visibleItems.length > 0 && <ActivityIndicator />}
             {!isLoading && hasMore && (
               <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
                 <ThemedText style={styles.loadMoreText}>Загрузить ещё</ThemedText>
               </TouchableOpacity>
             )}
-          </>
-        )}
-      </ScrollView>
+            <View style={{ height: 16 }} />
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+      />
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60, paddingHorizontal: 16 },
+  container: { flex: 1 },
+  listContent: { paddingHorizontal: 16, paddingTop: 60, paddingBottom: 8 },
+
   title: { marginBottom: 12 },
 
   // Category chips
-  filtersScroll: { marginBottom: 8, flexGrow: 0 },
-  filtersContent: { gap: 8, paddingRight: 8 },
-  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#333" },
+  chipsScroll: { flexGrow: 0, marginBottom: 8 },
+  chipsContent: { gap: 8, paddingRight: 8 },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#333",
+    flexShrink: 0,
+  },
   chipActive: { backgroundColor: "#2ecc71" },
   chipText: { fontSize: 14, color: "#ccc" },
   chipTextActive: { color: "#fff", fontWeight: "600" },
 
-  // Toggle button
-  filterToggleRow: { marginBottom: 8 },
+  // Filter toggle
   filterToggleBtn: {
     alignSelf: "flex-start",
     paddingHorizontal: 14,
@@ -369,15 +324,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#2a2a2a",
     borderWidth: 1,
     borderColor: "#444",
+    marginBottom: 10,
   },
   filterToggleBtnActive: { backgroundColor: "#1a4a2a", borderColor: "#2ecc71" },
   filterToggleText: { fontSize: 13, color: "#aaa" },
   filterToggleTextActive: { color: "#2ecc71", fontWeight: "600" },
 
-  // Advanced filter section
-  filterSection: { marginBottom: 8 },
-  filterRow: { marginBottom: 8 },
-  filterLabel: { fontSize: 11, color: "#888", fontWeight: "600", marginBottom: 4, textTransform: "uppercase" },
+  // Filter section
+  filterSection: { marginBottom: 10 },
+  filterLabel: {
+    fontSize: 11,
+    color: "#888",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    marginBottom: 5,
+  },
+  filterLabelTop: { marginTop: 10 },
   filterRowContent: { gap: 6, paddingRight: 8 },
   smallChip: {
     paddingHorizontal: 12,
@@ -386,6 +348,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2a2a2a",
     borderWidth: 1,
     borderColor: "#3a3a3a",
+    flexShrink: 0,
   },
   smallChipActive: { backgroundColor: "#1a4a2a", borderColor: "#2ecc71" },
   smallChipText: { fontSize: 12, color: "#bbb" },
@@ -398,14 +361,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#3a2020",
     borderWidth: 1,
     borderColor: "#cc4444",
-    marginTop: 2,
+    marginTop: 10,
   },
   clearFiltersText: { fontSize: 12, color: "#cc4444", fontWeight: "600" },
 
   // Grid
-  gridScroll: { flex: 1 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 8 },
-  card: { width: "47%" },
+  row: { gap: 12, marginBottom: 12 },
+  card: { flex: 1 },
   posterWrap: { position: "relative" },
   poster: { width: "100%", aspectRatio: 2 / 3, borderRadius: 10, backgroundColor: "#333" },
   addBtn: {
@@ -423,8 +385,11 @@ const styles = StyleSheet.create({
   addBtnText: { fontSize: 16, fontWeight: "bold", color: "#fff", lineHeight: 20 },
   cardTitle: { fontSize: 13, marginTop: 6, lineHeight: 18 },
   cardYear: { fontSize: 11, color: "#888", marginTop: 2 },
+
+  // Footer
+  footer: { paddingTop: 4 },
   loadMoreBtn: {
-    marginVertical: 12,
+    marginVertical: 8,
     paddingVertical: 13,
     borderRadius: 10,
     backgroundColor: "#333",

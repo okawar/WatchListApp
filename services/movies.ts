@@ -29,16 +29,18 @@ export const getOnAirTV = async (page = 1) => fetchData(`/tv/on_the_air?page=${p
 export const searchMulti = async (query: string) =>
   fetchData(`/search/multi?query=${encodeURIComponent(query)}`);
 
-export const discoverMoviesAdvanced = async (params: {
+interface DiscoverParams {
   sort_by: string;
   year: number | null;
   country: string | null;
   min_rating: number | null;
   genre: number | null;
   page: number;
-}) => {
+}
+
+const buildDiscoverParts = (params: DiscoverParams, yearKey: string) => {
   const parts: string[] = [`sort_by=${params.sort_by}`];
-  if (params.year) parts.push(`primary_release_year=${params.year}`);
+  if (params.year) parts.push(`${yearKey}=${params.year}`);
   if (params.country) parts.push(`with_origin_country=${params.country}`);
   if (params.min_rating) {
     parts.push(`vote_average.gte=${params.min_rating}`);
@@ -46,5 +48,11 @@ export const discoverMoviesAdvanced = async (params: {
   }
   if (params.genre) parts.push(`with_genres=${params.genre}`);
   parts.push(`page=${params.page}`);
-  return fetchData(`/discover/movie?${parts.join("&")}`);
+  return parts;
 };
+
+export const discoverMoviesAdvanced = async (params: DiscoverParams) =>
+  fetchData(`/discover/movie?${buildDiscoverParts(params, "primary_release_year").join("&")}`);
+
+export const discoverTVAdvanced = async (params: DiscoverParams) =>
+  fetchData(`/discover/tv?${buildDiscoverParts(params, "first_air_date_year").join("&")}`);

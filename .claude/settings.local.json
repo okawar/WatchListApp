@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(cat app/\\\\\\(tabs\\\\\\)/index.tsx app/\\\\\\(tabs\\\\\\)/explore.tsx app/\\\\\\(tabs\\\\\\)/_layout.tsx app/_layout.tsx)",
-      "Bash(cd C:\\\\Users\\\\Oka\\\\Desktop\\\\prog\\\\pets\\\\WatchListMovie:*)"
+      "Bash(cd C:\\\\Users\\\\Oka\\\\Desktop\\\\prog\\\\pets\\\\WatchListMovie:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git:*)",
+      "mcp__claude_ai_Context7__resolve-library-id",
+      "mcp__claude_ai_Context7__query-docs",
+      "Bash(npx expo:*)"
     ]
   }
 }
