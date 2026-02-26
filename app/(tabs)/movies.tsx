@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
+  Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -27,7 +27,7 @@ const CATEGORY_FILTERS = [
   { label: "Тренды", value: "trending" },
   { label: "Популярные", value: "popular" },
   { label: "Топ рейтинг", value: "top_rated" },
-  { label: "Скоро в кино", value: "upcoming" },
+  { label: "Скоро", value: "upcoming" },
 ] as const;
 
 type MovieCategory = (typeof CATEGORY_FILTERS)[number]["value"];
@@ -37,10 +37,6 @@ const SORT_OPTIONS = [
   { label: "По рейтингу", value: "vote_average.desc" },
   { label: "Новинки", value: "release_date.desc" },
 ];
-
-const YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2015, 2010, 2005, 2000].map(
-  (y) => ({ label: String(y), value: y }),
-);
 
 const COUNTRIES = [
   { label: "США", value: "US" },
@@ -53,6 +49,16 @@ const COUNTRIES = [
   { label: "Италия", value: "IT" },
   { label: "Индия", value: "IN" },
   { label: "Китай", value: "CN" },
+  { label: "Испания", value: "ES" },
+  { label: "Мексика", value: "MX" },
+  { label: "Канада", value: "CA" },
+  { label: "Австралия", value: "AU" },
+  { label: "Швеция", value: "SE" },
+  { label: "Дания", value: "DK" },
+  { label: "Норвегия", value: "NO" },
+  { label: "Польша", value: "PL" },
+  { label: "Турция", value: "TR" },
+  { label: "Бразилия", value: "BR" },
 ];
 
 const RATINGS = [
@@ -60,6 +66,7 @@ const RATINGS = [
   { label: "6+", value: 6 },
   { label: "7+", value: 7 },
   { label: "8+", value: 8 },
+  { label: "9+", value: 9 },
 ];
 
 export default function MoviesScreen() {
@@ -68,11 +75,13 @@ export default function MoviesScreen() {
   const [category, setCategory] = useState<MovieCategory>("trending");
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<string | null>(null);
+  const [yearText, setYearText] = useState("");
   const [year, setYear] = useState<number | null>(null);
   const [country, setCountry] = useState<string | null>(null);
   const [minRating, setMinRating] = useState<number | null>(null);
   const [genreId, setGenreId] = useState<number | null>(null);
   const [genres, setGenres] = useState<{ label: string; value: number }[]>([]);
+  const [genresLoading, setGenresLoading] = useState(true);
 
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
@@ -86,10 +95,24 @@ export default function MoviesScreen() {
   ).length;
 
   useEffect(() => {
-    getMovieGenres().then((data) =>
-      setGenres((data.genres ?? []).map((g: any) => ({ label: g.name, value: g.id }))),
-    );
+    setGenresLoading(true);
+    getMovieGenres()
+      .then((data) =>
+        setGenres((data.genres ?? []).map((g: any) => ({ label: g.name, value: g.id }))),
+      )
+      .finally(() => setGenresLoading(false));
   }, []);
+
+  const onYearChange = (text: string) => {
+    const digits = text.replace(/\D/g, "").slice(0, 4);
+    setYearText(digits);
+    const parsed = parseInt(digits, 10);
+    if (digits.length === 4 && parsed >= 1900 && parsed <= 2030) {
+      setYear(parsed);
+    } else {
+      setYear(null);
+    }
+  };
 
   const sectionData = useMediaSection("movie", category);
   const discoverData = useMediaDiscover(
@@ -106,14 +129,11 @@ export default function MoviesScreen() {
 
   const clearFilters = () => {
     setSortBy(null);
+    setYearText("");
     setYear(null);
     setCountry(null);
     setMinRating(null);
     setGenreId(null);
-  };
-
-  const onScrollBeginDrag = () => {
-    if (showFilters) setShowFilters(false);
   };
 
   const navigate = (movie: Movie) =>
@@ -135,9 +155,7 @@ export default function MoviesScreen() {
           style={[styles.addBtn, isInWatchlist(movie.id) && styles.addBtnActive]}
           onPress={() => toggleWatchlist(movie)}
         >
-          <ThemedText style={styles.addBtnText}>
-            {isInWatchlist(movie.id) ? "✓" : "+"}
-          </ThemedText>
+          <Text style={styles.addBtnText}>{isInWatchlist(movie.id) ? "✓" : "+"}</Text>
         </TouchableOpacity>
       </View>
       <ThemedText style={styles.cardTitle} numberOfLines={2}>
@@ -155,7 +173,6 @@ export default function MoviesScreen() {
         Фильмы
       </ThemedText>
 
-      {/* Category chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -168,21 +185,20 @@ export default function MoviesScreen() {
             style={[styles.chip, !hasFilter && category === f.value && styles.chipActive]}
             onPress={() => setCategory(f.value)}
           >
-            <ThemedText
+            <Text
               style={[styles.chipText, !hasFilter && category === f.value && styles.chipTextActive]}
             >
               {f.label}
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Filter toggle */}
       <TouchableOpacity
         style={[styles.filterToggleBtn, (showFilters || hasFilter) && styles.filterToggleBtnActive]}
         onPress={() => setShowFilters((v) => !v)}
       >
-        <ThemedText
+        <Text
           style={[
             styles.filterToggleText,
             (showFilters || hasFilter) && styles.filterToggleTextActive,
@@ -190,10 +206,9 @@ export default function MoviesScreen() {
         >
           {activeFilterCount > 0 ? `Фильтры (${activeFilterCount}) ` : "Фильтры "}
           {showFilters ? "▲" : "▼"}
-        </ThemedText>
+        </Text>
       </TouchableOpacity>
 
-      {/* Filter selects */}
       {showFilters && (
         <View style={styles.filterSection}>
           <View style={styles.selectRow}>
@@ -203,7 +218,29 @@ export default function MoviesScreen() {
               options={SORT_OPTIONS}
               onChange={setSortBy}
             />
-            <FilterSelect label="Год" value={year} options={YEARS} onChange={setYear} />
+            <View style={[styles.yearBox, year !== null && styles.yearBoxActive]}>
+              <TextInput
+                style={[styles.yearInput, year !== null && styles.yearInputActive]}
+                placeholder="Год"
+                placeholderTextColor={year !== null ? "#1aa84a" : "#666"}
+                keyboardType="numeric"
+                maxLength={4}
+                value={yearText}
+                onChangeText={onYearChange}
+                returnKeyType="done"
+              />
+              {yearText.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setYearText("");
+                    setYear(null);
+                  }}
+                  hitSlop={8}
+                >
+                  <Text style={styles.yearClear}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           <View style={styles.selectRow}>
             <FilterSelect
@@ -221,7 +258,7 @@ export default function MoviesScreen() {
           </View>
           <View style={styles.selectRowSingle}>
             <FilterSelect
-              label="Жанр"
+              label={genresLoading ? "Жанр (загрузка...)" : "Жанр"}
               value={genreId}
               options={genres}
               onChange={setGenreId}
@@ -229,7 +266,7 @@ export default function MoviesScreen() {
           </View>
           {hasFilter && (
             <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
-              <ThemedText style={styles.clearBtnText}>Сбросить все фильтры</ThemedText>
+              <Text style={styles.clearBtnText}>Сбросить все фильтры</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -256,13 +293,13 @@ export default function MoviesScreen() {
             {isLoading && visibleItems.length > 0 && <ActivityIndicator />}
             {!isLoading && hasMore && (
               <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
-                <ThemedText style={styles.loadMoreText}>Загрузить ещё</ThemedText>
+                <Text style={styles.loadMoreText}>Загрузить ещё</Text>
               </TouchableOpacity>
             )}
             <View style={{ height: 16 }} />
           </View>
         }
-        onScrollBeginDrag={onScrollBeginDrag}
+        onScrollBeginDrag={() => showFilters && setShowFilters(false)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
@@ -276,17 +313,17 @@ const styles = StyleSheet.create({
   title: { marginBottom: 12 },
 
   chipsScroll: { flexGrow: 0, marginBottom: 8 },
-  chipsContent: { gap: 8, paddingRight: 8 },
+  chipsContent: { gap: 6, paddingRight: 8 },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     backgroundColor: "#333",
     flexShrink: 0,
   },
   chipActive: { backgroundColor: "#2ecc71" },
-  chipText: { fontSize: 14, color: "#ccc" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
+  chipText: { fontSize: 13, color: "#ccc", fontWeight: "600", lineHeight: 18 },
+  chipTextActive: { color: "#fff", fontWeight: "700" },
 
   filterToggleBtn: {
     alignSelf: "flex-start",
@@ -299,12 +336,30 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   filterToggleBtnActive: { backgroundColor: "#1a4a2a", borderColor: "#2ecc71" },
-  filterToggleText: { fontSize: 13, color: "#aaa" },
+  filterToggleText: { fontSize: 13, color: "#aaa", lineHeight: 18 },
   filterToggleTextActive: { color: "#2ecc71", fontWeight: "600" },
 
   filterSection: { marginBottom: 10, gap: 8 },
   selectRow: { flexDirection: "row", gap: 8 },
   selectRowSingle: { flexDirection: "row" },
+
+  yearBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "#2a2a2a",
+    borderWidth: 1,
+    borderColor: "#3a3a3a",
+    flex: 1,
+    gap: 4,
+  },
+  yearBoxActive: { backgroundColor: "#1a4a2a", borderColor: "#2ecc71" },
+  yearInput: { fontSize: 14, color: "#ccc", flex: 1, padding: 0, lineHeight: 18 },
+  yearInputActive: { color: "#2ecc71", fontWeight: "600" },
+  yearClear: { fontSize: 11, color: "#666" },
+
   clearBtn: {
     alignSelf: "flex-start",
     paddingHorizontal: 14,
@@ -344,5 +399,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#333",
     alignItems: "center",
   },
-  loadMoreText: { fontSize: 14, fontWeight: "600" },
+  loadMoreText: { fontSize: 14, fontWeight: "600", color: "#fff" },
 });

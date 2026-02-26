@@ -128,9 +128,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a4a2a",
     borderColor: "#2ecc71",
   },
-  triggerText: { fontSize: 13, color: "#bbb", flex: 1 },
-  triggerTextActive: { color: "#2ecc71", fontWeight: "600" },
-  arrow: { fontSize: 9, color: "#555" },
+  triggerText: { fontSize: 14, color: "#ccc", flex: 1, lineHeight: 18 },
+  triggerTextActive: { color: "#2ecc71", fontWeight: "600", lineHeight: 18 },
+  arrow: { fontSize: 9, color: "#666" },
   arrowActive: { color: "#2ecc71" },
 
   overlay: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1c1c1c",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "60%",
+    maxHeight: "75%",
     paddingBottom: 32,
   },
   sheetHeader: {

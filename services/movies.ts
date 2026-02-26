@@ -55,6 +55,24 @@ export const getMovieVideos = (id: number) => fetchData(`/movie/${id}/videos`);
 export const getTVDetails = (id: number) => fetchData(`/tv/${id}`);
 export const getTVCredits = (id: number) => fetchData(`/tv/${id}/credits`);
 export const getTVVideos = (id: number) => fetchData(`/tv/${id}/videos`);
+export const getMovieExternalIds = (id: number) => fetchData(`/movie/${id}/external_ids`);
+export const getTVExternalIds = (id: number) => fetchData(`/tv/${id}/external_ids`);
+
+/** Получить Kinopoisk ID по IMDB ID через kinopoisk.dev (требует EXPO_PUBLIC_KP_KEY) */
+export const getKinopoiskId = async (imdbId: string): Promise<number | null> => {
+  const key = process.env.EXPO_PUBLIC_KP_KEY;
+  if (!key || !imdbId) return null;
+  try {
+    const resp = await fetch(
+      `https://api.kinopoisk.dev/v1.4/movie?externalId.imdb=${imdbId}&limit=1`,
+      { headers: { "X-API-KEY": key } },
+    );
+    const data = await resp.json();
+    return (data?.docs?.[0]?.id as number) ?? null;
+  } catch {
+    return null;
+  }
+};
 
 export const discoverMoviesAdvanced = async (params: DiscoverParams) =>
   fetchData(`/discover/movie?${buildDiscoverParts(params, "primary_release_year").join("&")}`);

@@ -14,11 +14,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useWatchlist } from "@/context/watchlist-context";
 import {
+  getKinopoiskId,
   getMovieCredits,
   getMovieDetails,
+  getMovieExternalIds,
   getMovieVideos,
   getTVCredits,
   getTVDetails,
+  getTVExternalIds,
   getTVVideos,
 } from "@/services/movies";
 import { CastMember, Credits, CrewMember, Movie } from "@/types/movie";
@@ -34,6 +37,8 @@ export default function MovieScreen() {
   const [credits, setCredits] = useState<Credits | null>(null);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imdbId, setImdbId] = useState<string | null>(null);
+  const [kpId, setKpId] = useState<number | null>(null);
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
@@ -41,10 +46,11 @@ export default function MovieScreen() {
       setIsLoading(true);
       try {
         const numId = Number(id);
-        const [detailData, creditsData, videosData] = await Promise.all([
+        const [detailData, creditsData, videosData, externalData] = await Promise.all([
           isTV ? getTVDetails(numId) : getMovieDetails(numId),
           isTV ? getTVCredits(numId) : getMovieCredits(numId),
           isTV ? getTVVideos(numId) : getMovieVideos(numId),
+          isTV ? getTVExternalIds(numId) : getMovieExternalIds(numId),
         ]);
 
         if (isTV) {
@@ -68,6 +74,15 @@ export default function MovieScreen() {
           videos.find((v) => v.site === "YouTube" && v.type === "Trailer") ??
           videos.find((v) => v.site === "YouTube");
         if (trailer) setTrailerKey(trailer.key);
+
+        const imdb: string | null = externalData?.imdb_id ?? null;
+        setImdbId(imdb);
+        // Fetch KP ID asynchronously — не блокирует основной экран
+        if (imdb) {
+          getKinopoiskId(imdb).then((id) => {
+            if (id) setKpId(id);
+          });
+        }
       } finally {
         setIsLoading(false);
       }
@@ -101,15 +116,26 @@ export default function MovieScreen() {
 
           {trailerKey && (
             <TouchableOpacity
-              style={styles.trailerBtn}
+              style={styles.trailerWrap}
               onPress={() =>
                 WebBrowser.openBrowserAsync(
                   `https://www.youtube.com/watch?v=${trailerKey}`,
                 )
               }
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <ThemedText style={styles.trailerBtnText}>▶  Смотреть трейлер</ThemedText>
+              <Image
+                source={{ uri: `https://img.youtube.com/vi/${trailerKey}/hqdefault.jpg` }}
+                style={styles.trailerThumb}
+                contentFit="cover"
+                transition={200}
+              />
+              <View style={styles.trailerOverlay}>
+                <View style={styles.playBtn}>
+                  <ThemedText style={styles.playIcon}>▶</ThemedText>
+                </View>
+                <ThemedText style={styles.trailerLabel}>Смотреть трейлер</ThemedText>
+              </View>
             </TouchableOpacity>
           )}
 
@@ -133,6 +159,37 @@ export default function MovieScreen() {
               {isInWatchlist(movie.id) ? "✓ В списке" : "+ В мой список"}
             </ThemedText>
           </TouchableOpacity>
+
+          <View style={styles.externalRow}>
+            <TouchableOpacity
+              style={styles.kpBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                const url = kpId
+                  ? `https://www.kinopoisk.ru/${isTV ? "series" : "film"}/${kpId}/`
+                  : imdbId
+                    ? `https://www.kinopoisk.ru/index.php?kp_query=${imdbId}`
+                    : `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(movie.title)}`;
+                WebBrowser.openBrowserAsync(url);
+              }}
+            >
+              <ThemedText style={styles.kpBtnText}>КП</ThemedText>
+            </TouchableOpacity>
+
+            {kpId && (
+              <TouchableOpacity
+                style={styles.flicksBtn}
+                activeOpacity={0.8}
+                onPress={() =>
+                  WebBrowser.openBrowserAsync(
+                    `https://flcksbr.top/${isTV ? "series" : "film"}/${kpId}/`,
+                  )
+                }
+              >
+                <ThemedText style={styles.flicksBtnText}>▶ Смотреть онлайн</ThemedText>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <ThemedText style={styles.section}>О {isTV ? "сериале" : "фильме"}</ThemedText>
           <ThemedText style={styles.overview}>{movie.overview}</ThemedText>
@@ -194,14 +251,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#333",
   },
 
-  trailerBtn: {
-    backgroundColor: "#e53935",
+  trailerWrap: {
     borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
+    overflow: "hidden",
     marginBottom: 14,
+    backgroundColor: "#222",
   },
-  trailerBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  trailerThumb: {
+    width: "100%",
+    height: 190,
+  },
+  trailerOverlay: {
+    position: "absolute",
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  playBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(229,57,53,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playIcon: { fontSize: 22, color: "#fff", marginLeft: 3 },
+  trailerLabel: { fontSize: 14, fontWeight: "600", color: "#fff" },
 
   title: { marginBottom: 8 },
   ratingRow: {
@@ -212,6 +289,32 @@ const styles = StyleSheet.create({
   },
   rating: { fontSize: 18, fontWeight: "bold", color: "#f5c518" },
   year: { fontSize: 16, opacity: 0.6 },
+
+  externalRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  kpBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: "#FF6600",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kpBtnText: { fontSize: 14, fontWeight: "800", color: "#fff" },
+  flicksBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: "#1a1a2e",
+    borderWidth: 1,
+    borderColor: "#3a3aaa",
+    alignItems: "center",
+  },
+  flicksBtnText: { fontSize: 14, fontWeight: "600", color: "#8888ff" },
 
   watchlistBtn: {
     backgroundColor: "#444",

@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import {
   FlatList,
@@ -136,6 +137,16 @@ export default function HomeScreen() {
                     >
                       <ThemedText style={styles.removeButtonText}>✕</ThemedText>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.kpButton}
+                      onPress={() =>
+                        WebBrowser.openBrowserAsync(
+                          `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(movie.title)}`,
+                        )
+                      }
+                    >
+                      <ThemedText style={styles.kpButtonText}>КП</ThemedText>
+                    </TouchableOpacity>
                   </View>
                   <ThemedText style={styles.watchlistTitle} numberOfLines={2}>
                     {movie.title}
@@ -269,6 +280,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
     lineHeight: 18,
+  },
+  kpButton: {
+    position: "absolute",
+    bottom: 6,
+    left: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,102,0,0.88)",
+  },
+  kpButtonText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#fff",
+    lineHeight: 14,
   },
 
   // Search section
