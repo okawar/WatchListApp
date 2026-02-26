@@ -1,26 +1,24 @@
-import { getTrending } from "@/services/movies";
+import { searchMovies } from "@/services/movies";
 import { Movie } from "@/types/movie";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-export const useTrending = () => {
+export const useSearch = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
+  const search = async (query: string) => {
       setIsLoading(true);
+      setError(null);
       try {
-        const data = await getTrending();
-        setMovies(data.results);
+        const response = await searchMovies(query);
+        setMovies(response.results);
       } catch (e) {
         setError(String(e));
       } finally {
         setIsLoading(false);
       }
-    };
-    load();
-  }, []);
+  };
 
-  return { isLoading, error, movies };
+  return { search, movies, isLoading, error };
 };
