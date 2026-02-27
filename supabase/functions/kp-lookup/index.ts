@@ -8,6 +8,16 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Deployed with --no-verify-jwt; manually check the anon key is present.
+  const apikey = req.headers.get("apikey") ?? req.headers.get("x-api-key");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!apikey || apikey !== anonKey) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { imdbId } = await req.json();
 
