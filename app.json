@@ -43,6 +43,14 @@
       "expo-video",
       "expo-secure-store"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/b9ea01c5-b689-40a5-b121-1113d0d7b218",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -1,15 +1,15 @@
 import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 
+import { MovieDetailSkeleton } from "@/components/skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useWatchlist } from "@/context/watchlist-context";
@@ -19,6 +19,8 @@ import {
   getMovieDetails,
   getMovieExternalIds,
   getMovieVideos,
+  getSimilarMovies,
+  getSimilarTV,
   getTVCredits,
   getTVDetails,
   getTVExternalIds,
@@ -28,10 +30,12 @@ import { CastMember, Credits, CrewMember, Movie } from "@/types/movie";
 
 const IMAGE_BASE_LARGE = "https://image.tmdb.org/t/p/w500";
 const IMAGE_BASE_SMALL = "https://image.tmdb.org/t/p/w185";
+const IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 
 export default function MovieScreen() {
   const { id, type } = useLocalSearchParams<{ id: string; type?: string }>();
   const isTV = type === "tv";
+  const router = useRouter();
 
   const [movie, setMovie] = useState<Movie | null>(null);
   const [credits, setCredits] = useState<Credits | null>(null);
@@ -39,11 +43,14 @@ export default function MovieScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [imdbId, setImdbId] = useState<string | null>(null);
   const [kpId, setKpId] = useState<number | null>(null);
+  const [similar, setSimilar] = useState<Movie[]>([]);
+
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
+      setSimilar([]);
       try {
         const numId = Number(id);
         const [detailData, creditsData, videosData, externalData] = await Promise.all([
@@ -77,12 +84,29 @@ export default function MovieScreen() {
 
         const imdb: string | null = externalData?.imdb_id ?? null;
         setImdbId(imdb);
-        // Fetch KP ID asynchronously — не блокирует основной экран
         if (imdb) {
-          getKinopoiskId(imdb).then((id) => {
-            if (id) setKpId(id);
+          getKinopoiskId(imdb).then((kpid) => {
+            if (kpid) setKpId(kpid);
           });
         }
+
+        // Load similar in background — does not block the page
+        const simFn = isTV ? getSimilarTV : getSimilarMovies;
+        simFn(numId).then((data) => {
+          const items = (data.results ?? [])
+            .filter((item: any) => item.poster_path)
+            .slice(0, 12)
+            .map((item: any) => ({
+              id: item.id,
+              title: item.title ?? item.name ?? "",
+              overview: item.overview ?? "",
+              poster_path: item.poster_path,
+              vote_average: item.vote_average ?? 0,
+              release_date: item.release_date ?? item.first_air_date ?? "",
+              media_type: (isTV ? "tv" : "movie") as "movie" | "tv",
+            }));
+          setSimilar(items);
+        });
       } finally {
         setIsLoading(false);
       }
@@ -93,7 +117,7 @@ export default function MovieScreen() {
   if (isLoading) {
     return (
       <ThemedView style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <MovieDetailSkeleton />
       </ThemedView>
     );
   }
@@ -104,143 +128,178 @@ export default function MovieScreen() {
   const cast = credits?.cast?.slice(0, 6) ?? [];
 
   return (
-    <>
-      <ScrollView>
-        <ThemedView style={styles.container}>
-          <Image
-            source={{ uri: IMAGE_BASE_LARGE + movie.poster_path }}
-            style={styles.poster}
-            contentFit="cover"
-            transition={300}
-          />
+    <ScrollView>
+      <ThemedView style={styles.container}>
+        <Image
+          source={{ uri: IMAGE_BASE_LARGE + movie.poster_path }}
+          style={styles.poster}
+          contentFit="cover"
+          transition={300}
+        />
 
-          {trailerKey && (
-            <TouchableOpacity
-              style={styles.trailerWrap}
-              onPress={() =>
-                WebBrowser.openBrowserAsync(
-                  `https://www.youtube.com/watch?v=${trailerKey}`,
-                )
-              }
-              activeOpacity={0.85}
-            >
-              <Image
-                source={{ uri: `https://img.youtube.com/vi/${trailerKey}/hqdefault.jpg` }}
-                style={styles.trailerThumb}
-                contentFit="cover"
-                transition={200}
-              />
-              <View style={styles.trailerOverlay}>
-                <View style={styles.playBtn}>
-                  <ThemedText style={styles.playIcon}>▶</ThemedText>
-                </View>
-                <ThemedText style={styles.trailerLabel}>Смотреть трейлер</ThemedText>
-              </View>
-            </TouchableOpacity>
-          )}
-
-          <ThemedText type="title" style={styles.title}>
-            {movie.title}
-          </ThemedText>
-
-          <View style={styles.ratingRow}>
-            <ThemedText style={styles.rating}>
-              ★ {(movie.vote_average ?? 0).toFixed(1)}
-            </ThemedText>
-            <ThemedText style={styles.year}>{movie.release_date?.slice(0, 4)}</ThemedText>
-          </View>
-
+        {trailerKey && (
           <TouchableOpacity
-            style={[styles.watchlistBtn, isInWatchlist(movie.id) && styles.watchlistBtnActive]}
-            onPress={() => toggleWatchlist(movie)}
-            activeOpacity={0.8}
+            style={styles.trailerWrap}
+            onPress={() =>
+              WebBrowser.openBrowserAsync(`https://www.youtube.com/watch?v=${trailerKey}`)
+            }
+            activeOpacity={0.85}
           >
-            <ThemedText style={styles.watchlistBtnText}>
-              {isInWatchlist(movie.id) ? "✓ В списке" : "+ В мой список"}
-            </ThemedText>
+            <Image
+              source={{ uri: `https://img.youtube.com/vi/${trailerKey}/hqdefault.jpg` }}
+              style={styles.trailerThumb}
+              contentFit="cover"
+              transition={200}
+            />
+            <View style={styles.trailerOverlay}>
+              <View style={styles.playBtn}>
+                <ThemedText style={styles.playIcon}>▶</ThemedText>
+              </View>
+              <ThemedText style={styles.trailerLabel}>Смотреть трейлер</ThemedText>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        <ThemedText type="title" style={styles.title}>
+          {movie.title}
+        </ThemedText>
+
+        <View style={styles.ratingRow}>
+          <ThemedText style={styles.rating}>★ {(movie.vote_average ?? 0).toFixed(1)}</ThemedText>
+          <ThemedText style={styles.year}>{movie.release_date?.slice(0, 4)}</ThemedText>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.watchlistBtn, isInWatchlist(movie.id) && styles.watchlistBtnActive]}
+          onPress={() => toggleWatchlist(movie)}
+          activeOpacity={0.8}
+        >
+          <ThemedText style={styles.watchlistBtnText}>
+            {isInWatchlist(movie.id) ? "✓ В списке" : "+ В мой список"}
+          </ThemedText>
+        </TouchableOpacity>
+
+        <View style={styles.externalRow}>
+          <TouchableOpacity
+            style={styles.kpBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              const url = kpId
+                ? `https://www.kinopoisk.ru/${isTV ? "series" : "film"}/${kpId}/`
+                : imdbId
+                  ? `https://www.kinopoisk.ru/index.php?kp_query=${imdbId}`
+                  : `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(movie.title)}`;
+              WebBrowser.openBrowserAsync(url);
+            }}
+          >
+            <ThemedText style={styles.kpBtnText}>КП</ThemedText>
           </TouchableOpacity>
 
-          <View style={styles.externalRow}>
+          {kpId && (
             <TouchableOpacity
-              style={styles.kpBtn}
+              style={styles.flicksBtn}
               activeOpacity={0.8}
-              onPress={() => {
-                const url = kpId
-                  ? `https://www.kinopoisk.ru/${isTV ? "series" : "film"}/${kpId}/`
-                  : imdbId
-                    ? `https://www.kinopoisk.ru/index.php?kp_query=${imdbId}`
-                    : `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(movie.title)}`;
-                WebBrowser.openBrowserAsync(url);
-              }}
+              onPress={() =>
+                WebBrowser.openBrowserAsync(
+                  `https://flcksbr.top/${isTV ? "series" : "film"}/${kpId}/`,
+                )
+              }
             >
-              <ThemedText style={styles.kpBtnText}>КП</ThemedText>
+              <ThemedText style={styles.flicksBtnText}>▶ Смотреть онлайн</ThemedText>
             </TouchableOpacity>
-
-            {kpId && (
-              <TouchableOpacity
-                style={styles.flicksBtn}
-                activeOpacity={0.8}
-                onPress={() =>
-                  WebBrowser.openBrowserAsync(
-                    `https://flcksbr.top/${isTV ? "series" : "film"}/${kpId}/`,
-                  )
-                }
-              >
-                <ThemedText style={styles.flicksBtnText}>▶ Смотреть онлайн</ThemedText>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <ThemedText style={styles.section}>О {isTV ? "сериале" : "фильме"}</ThemedText>
-          <ThemedText style={styles.overview}>{movie.overview}</ThemedText>
-
-          {director && (
-            <>
-              <ThemedText style={styles.section}>Режиссёр</ThemedText>
-              <ThemedText style={styles.directorName}>{director.name}</ThemedText>
-            </>
           )}
+        </View>
 
-          {cast.length > 0 && (
-            <>
-              <ThemedText style={styles.section}>В ролях</ThemedText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.castRow}>
-                  {cast.map((actor: CastMember) => (
-                    <View key={actor.id} style={styles.castItem}>
-                      <View style={styles.avatarWrapper}>
-                        {actor.profile_path ? (
-                          <Image
-                            source={{ uri: IMAGE_BASE_SMALL + actor.profile_path }}
-                            style={styles.avatar}
-                            contentFit="cover"
-                            transition={200}
-                          />
-                        ) : (
-                          <View style={[styles.avatar, styles.avatarPlaceholder]} />
-                        )}
-                      </View>
-                      <ThemedText style={styles.actorName} numberOfLines={2}>
-                        {actor.name}
-                      </ThemedText>
-                      <ThemedText style={styles.character} numberOfLines={2}>
-                        {actor.character}
-                      </ThemedText>
+        <ThemedText style={styles.section}>О {isTV ? "сериале" : "фильме"}</ThemedText>
+        <ThemedText style={styles.overview}>{movie.overview}</ThemedText>
+
+        {director && (
+          <>
+            <ThemedText style={styles.section}>Режиссёр</ThemedText>
+            <ThemedText style={styles.directorName}>{director.name}</ThemedText>
+          </>
+        )}
+
+        {cast.length > 0 && (
+          <>
+            <ThemedText style={styles.section}>В ролях</ThemedText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.castRow}>
+                {cast.map((actor: CastMember) => (
+                  <TouchableOpacity
+                    key={actor.id}
+                    style={styles.castItem}
+                    activeOpacity={0.75}
+                    onPress={() =>
+                      router.push({ pathname: "/person/[id]", params: { id: actor.id } })
+                    }
+                  >
+                    <View style={styles.avatarWrapper}>
+                      {actor.profile_path ? (
+                        <Image
+                          source={{ uri: IMAGE_BASE_SMALL + actor.profile_path }}
+                          style={styles.avatar}
+                          contentFit="cover"
+                          transition={200}
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <View style={[styles.avatar, styles.avatarPlaceholder]} />
+                      )}
                     </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </>
-          )}
-        </ThemedView>
-      </ScrollView>
+                    <ThemedText style={styles.actorName} numberOfLines={2}>
+                      {actor.name}
+                    </ThemedText>
+                    <ThemedText style={styles.character} numberOfLines={2}>
+                      {actor.character}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </>
+        )}
 
-    </>
+        {similar.length > 0 && (
+          <>
+            <ThemedText style={styles.section}>Похожие</ThemedText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.similarRow}>
+                {similar.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.similarCard}
+                    activeOpacity={0.75}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/movie/[id]",
+                        params: { id: item.id, type: item.media_type ?? "movie" },
+                      })
+                    }
+                  >
+                    <Image
+                      source={item.poster_path ? { uri: IMAGE_BASE + item.poster_path } : null}
+                      style={styles.similarPoster}
+                      contentFit="cover"
+                      transition={200}
+                      cachePolicy="memory-disk"
+                    />
+                    <ThemedText style={styles.similarTitle} numberOfLines={2}>
+                      {item.title}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </>
+        )}
+      </ThemedView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  centered: { flex: 1 },
   container: { flex: 1, padding: 16, paddingBottom: 40 },
 
   poster: {
@@ -257,10 +316,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: "#222",
   },
-  trailerThumb: {
-    width: "100%",
-    height: 190,
-  },
+  trailerThumb: { width: "100%", height: 190 },
   trailerOverlay: {
     position: "absolute",
     inset: 0,
@@ -281,21 +337,11 @@ const styles = StyleSheet.create({
   trailerLabel: { fontSize: 14, fontWeight: "600", color: "#fff" },
 
   title: { marginBottom: 8 },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-  },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
   rating: { fontSize: 18, fontWeight: "bold", color: "#f5c518" },
   year: { fontSize: 16, opacity: 0.6 },
 
-  externalRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 4,
-  },
+  externalRow: { flexDirection: "row", gap: 10, marginTop: 10, marginBottom: 4 },
   kpBtn: {
     paddingHorizontal: 18,
     paddingVertical: 11,
@@ -338,4 +384,8 @@ const styles = StyleSheet.create({
   actorName: { fontSize: 13, fontWeight: "600" },
   character: { fontSize: 12, opacity: 0.6 },
 
+  similarRow: { flexDirection: "row", gap: 10, paddingBottom: 8 },
+  similarCard: { width: 110 },
+  similarPoster: { width: 110, height: 165, borderRadius: 8, backgroundColor: "#333" },
+  similarTitle: { fontSize: 11, marginTop: 5, lineHeight: 15 },
 });

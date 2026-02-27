@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { AuthProvider } from "@/context/auth-context";
+import { ToastProvider } from "@/context/toast-context";
 import { WatchlistProvider } from "@/context/watchlist-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
@@ -16,16 +17,19 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <WatchlistProvider>
-        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="movie/[id]" options={{ title: "" }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </WatchlistProvider>
+      <ToastProvider>
+        <WatchlistProvider>
+          <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+            <Stack>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="movie/[id]" options={{ title: "" }} />
+              <Stack.Screen name="person/[id]" options={{ title: "" }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </WatchlistProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }

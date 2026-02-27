@@ -7,6 +7,8 @@ import {
   TmdbMovieDetail,
   TmdbPaginatedResponse,
   TmdbMovieResult,
+  TmdbPersonCombinedCredits,
+  TmdbPersonDetail,
   TmdbTVDetail,
   TmdbTVResult,
   TmdbVideosResponse,
@@ -118,6 +120,20 @@ export const discoverTVAdvanced = (params: DiscoverParams) =>
   fetchData<TmdbPaginatedResponse<TmdbTVResult>>(
     `/discover/tv?${buildDiscoverParts(params, "first_air_date_year").join("&")}`,
   );
+
+// ── Similar ───────────────────────────────────────────────────────────────────
+export const getSimilarMovies = (id: number, page = 1) =>
+  fetchData<TmdbPaginatedResponse<TmdbMovieResult>>(`/movie/${id}/similar?page=${page}`);
+
+export const getSimilarTV = (id: number, page = 1) =>
+  fetchData<TmdbPaginatedResponse<TmdbTVResult>>(`/tv/${id}/similar?page=${page}`);
+
+// ── Person ────────────────────────────────────────────────────────────────────
+export const getPersonDetails = (id: number) =>
+  fetchData<TmdbPersonDetail>(`/person/${id}`);
+
+export const getPersonCombinedCredits = (id: number) =>
+  fetchData<TmdbPersonCombinedCredits>(`/person/${id}/combined_credits`);
 
 // ── Kinopoisk (via Supabase Edge Function — key stays server-side) ────────────
 export const getKinopoiskId = async (imdbId: string): Promise<number | null> => {

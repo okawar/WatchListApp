@@ -133,3 +133,35 @@ export interface TmdbTVDetail extends TmdbTVResult {
     air_date: string;
   }>;
 }
+
+export interface TmdbPersonDetail {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  known_for_department: string;
+  popularity: number;
+}
+
+export interface TmdbPersonCombinedCredit {
+  id: number;
+  media_type: "movie" | "tv";
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  vote_average?: number;
+  release_date?: string;
+  first_air_date?: string;
+  overview?: string;
+  popularity?: number;
+  character?: string;
+  job?: string;
+}
+
+export interface TmdbPersonCombinedCredits {
+  cast: TmdbPersonCombinedCredit[];
+  crew: TmdbPersonCombinedCredit[];
+}

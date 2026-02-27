@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
+import { useToast } from "@/context/toast-context";
 import { supabase } from "@/services/supabase";
 import { Movie } from "@/types/movie";
 import { WatchlistInsert, WatchlistRow } from "@/types/supabase";
@@ -76,6 +77,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const loaded = useRef(false);
+  const { showToast } = useToast();
 
   // Subscribe to auth changes
   useEffect(() => {
@@ -143,6 +145,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
     setWatchlist((prev) =>
       adding ? [...prev, movie] : prev.filter((m) => m.id !== movie.id),
     );
+    showToast(adding ? "✓ Добавлено в список" : "Удалено из списка");
     if (userId) {
       if (adding) upsertSupabase(movie, userId);
       else deleteSupabase(movie.id, userId);
