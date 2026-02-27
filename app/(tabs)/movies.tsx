@@ -1,6 +1,7 @@
+import { useScrollToTop } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -71,6 +72,8 @@ const RATINGS = [
 
 export default function MoviesScreen() {
   const router = useRouter();
+  const listRef = useRef<FlatList>(null);
+  useScrollToTop(listRef);
 
   const [category, setCategory] = useState<MovieCategory>("trending");
   const [showFilters, setShowFilters] = useState(false);
@@ -282,6 +285,7 @@ export default function MoviesScreen() {
   return (
     <ThemedView style={styles.container}>
       <FlatList
+        ref={listRef}
         data={visibleItems}
         key={category}
         keyExtractor={(item) => item.id.toString()}
