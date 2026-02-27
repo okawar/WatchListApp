@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,30 +9,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Verify user is authenticated
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { imdbId } = await req.json();
+
     if (!imdbId || typeof imdbId !== "string") {
       return new Response(JSON.stringify({ kpId: null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -43,6 +19,7 @@ Deno.serve(async (req: Request) => {
 
     const kpKey = Deno.env.get("KP_KEY");
     if (!kpKey) {
+      console.error("[kp-lookup] KP_KEY secret not set");
       return new Response(JSON.stringify({ kpId: null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -54,6 +31,7 @@ Deno.serve(async (req: Request) => {
     );
 
     if (!resp.ok) {
+      console.error("[kp-lookup] kinopoisk.dev error", resp.status);
       return new Response(JSON.stringify({ kpId: null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
