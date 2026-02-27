@@ -21,7 +21,7 @@ import { useMediaSection } from "@/hooks/use-media-section";
 import { getTVGenres } from "@/services/movies";
 import { Movie } from "@/types/movie";
 
-const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
+const IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 
 const CATEGORY_FILTERS = [
   { label: "Тренды", value: "trending" },
@@ -146,10 +146,11 @@ export default function TVScreen() {
     <TouchableOpacity style={styles.card} activeOpacity={0.75} onPress={() => navigate(show)}>
       <View style={styles.posterWrap}>
         <Image
-          source={{ uri: IMAGE_BASE + show.poster_path }}
+          source={show.poster_path ? { uri: IMAGE_BASE + show.poster_path } : null}
           style={styles.poster}
           contentFit="cover"
           transition={200}
+          cachePolicy="memory-disk"
         />
         <TouchableOpacity
           style={[styles.addBtn, isInWatchlist(show.id) && styles.addBtnActive]}

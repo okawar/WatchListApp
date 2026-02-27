@@ -10,23 +10,16 @@ import {
   getTrendingTV,
   getUpcomingMovies,
 } from "@/services/movies";
-import { Movie, TVShow } from "@/types/movie";
+import { TmdbMovieResult, TmdbPaginatedResponse, TmdbTVResult } from "@/types/tmdb";
+import { Movie } from "@/types/movie";
 
 const VISIBLE_STEP = 10;
 
-const normalizeTV = (show: TVShow): Movie => ({
-  id: show.id,
-  title: show.name,
-  overview: show.overview,
-  poster_path: show.poster_path,
-  vote_average: show.vote_average,
-  release_date: show.first_air_date,
-  media_type: "tv",
-});
+type MovieFetcher = (page: number) => Promise<TmdbPaginatedResponse<TmdbMovieResult>>;
+type TVFetcher = (page: number) => Promise<TmdbPaginatedResponse<TmdbTVResult>>;
+type Fetcher = MovieFetcher | TVFetcher;
 
-type Fetcher = (page: number) => Promise<any>;
-
-const FETCHERS: Record<string, Record<string, Fetcher>> = {
+const FETCHERS: Record<"movie" | "tv", Record<string, Fetcher>> = {
   movie: {
     trending: getTrendingMovies,
     popular: getPopularMovies,
@@ -41,6 +34,28 @@ const FETCHERS: Record<string, Record<string, Fetcher>> = {
   },
 };
 
+const normalizeTV = (show: TmdbTVResult): Movie => ({
+  id: show.id,
+  title: show.name,
+  overview: show.overview,
+  poster_path: show.poster_path,
+  vote_average: show.vote_average,
+  release_date: show.first_air_date,
+  media_type: "tv",
+  popularity: show.popularity,
+});
+
+const normalizeMovie = (m: TmdbMovieResult): Movie => ({
+  id: m.id,
+  title: m.title,
+  overview: m.overview,
+  poster_path: m.poster_path,
+  vote_average: m.vote_average,
+  release_date: m.release_date,
+  media_type: "movie",
+  popularity: m.popularity,
+});
+
 export function useMediaSection(type: "movie" | "tv", category: string) {
   const [allItems, setAllItems] = useState<Movie[]>([]);
   const [visibleCount, setVisibleCount] = useState(VISIBLE_STEP);
@@ -54,17 +69,22 @@ export function useMediaSection(type: "movie" | "tv", category: string) {
       try {
         const fetcher = FETCHERS[type]?.[category];
         if (!fetcher) return;
-        const data = await fetcher(page);
+        const data = await (fetcher as Fetcher)(page);
         const results = data.results ?? [];
-        const normalized: Movie[] = type === "tv" ? results.map(normalizeTV) : results;
+        const normalized: Movie[] =
+          type === "tv"
+            ? (results as TmdbTVResult[]).map(normalizeTV)
+            : (results as TmdbMovieResult[]).map(normalizeMovie);
         setAllItems((prev) => (page === 1 ? normalized : [...prev, ...normalized]));
         setTotalPages(data.total_pages ?? 1);
         setFetchedPage(page);
+      } catch (e) {
+        if (__DEV__) console.error("[useMediaSection]", type, category, e);
       } finally {
         setIsLoading(false);
       }
     },
-    [type, category]
+    [type, category],
   );
 
   useEffect(() => {
@@ -86,8 +106,6 @@ export function useMediaSection(type: "movie" | "tv", category: string) {
     visibleItems: allItems.slice(0, visibleCount),
     isLoading,
     loadMore,
-    hasMore:
-      visibleCount < allItems.length ||
-      (fetchedPage > 0 && fetchedPage < totalPages),
+    hasMore: visibleCount < allItems.length || (fetchedPage > 0 && fetchedPage < totalPages),
   };
 }

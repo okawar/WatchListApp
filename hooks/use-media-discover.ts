@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { discoverMoviesAdvanced, discoverTVAdvanced } from "@/services/movies";
+import { TmdbMovieResult, TmdbTVResult } from "@/types/tmdb";
 import { Movie } from "@/types/movie";
 
 const VISIBLE_STEP = 10;
 
-const normalizeTV = (item: any): Movie => ({
+const normalizeTV = (item: TmdbTVResult): Movie => ({
   id: item.id,
   title: item.name,
   overview: item.overview,
@@ -13,6 +14,18 @@ const normalizeTV = (item: any): Movie => ({
   vote_average: item.vote_average,
   release_date: item.first_air_date ?? "",
   media_type: "tv",
+  popularity: item.popularity,
+});
+
+const normalizeMovie = (item: TmdbMovieResult): Movie => ({
+  id: item.id,
+  title: item.title,
+  overview: item.overview,
+  poster_path: item.poster_path,
+  vote_average: item.vote_average,
+  release_date: item.release_date ?? "",
+  media_type: "movie",
+  popularity: item.popularity,
 });
 
 export function useMediaDiscover(
@@ -40,15 +53,16 @@ export function useMediaDiscover(
             ? await discoverMoviesAdvanced(params)
             : await discoverTVAdvanced(params);
 
-        const raw: any[] = data.results ?? [];
         const results: Movie[] =
           type === "tv"
-            ? raw.map(normalizeTV)
-            : raw.map((item: any) => ({ ...item, media_type: "movie" as const }));
+            ? (data.results as TmdbTVResult[]).map(normalizeTV)
+            : (data.results as TmdbMovieResult[]).map(normalizeMovie);
 
         setAllItems((prev) => (page === 1 ? results : [...prev, ...results]));
         setTotalPages(data.total_pages ?? 1);
         setFetchedPage(page);
+      } catch (e) {
+        if (__DEV__) console.error("[useMediaDiscover]", type, e);
       } finally {
         setIsLoading(false);
       }

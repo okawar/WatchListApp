@@ -17,7 +17,7 @@ import { useWatchlist } from "@/context/watchlist-context";
 import { useSearch } from "@/hooks/use-search";
 import { Movie } from "@/types/movie";
 
-const IMAGE_BASE = "https://image.tmdb.org/t/p/w185";
+const IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 
 type ViewMode = "grid" | "list";
 
@@ -34,7 +34,13 @@ export default function HomeScreen() {
       onPress={() => router.push({ pathname: "/movie/[id]", params: { id: item.id, type: item.media_type ?? "movie" } })}
       activeOpacity={0.7}
     >
-      <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.poster} />
+      <Image
+        source={item.poster_path ? { uri: IMAGE_BASE + item.poster_path } : null}
+        style={styles.poster}
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
+      />
       <View style={styles.movieInfo}>
         <ThemedText style={styles.movieTitle} numberOfLines={1}>
           {item.title}
@@ -61,7 +67,13 @@ export default function HomeScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.gridPosterWrap}>
-        <Image source={{ uri: IMAGE_BASE + item.poster_path }} style={styles.gridPoster} />
+        <Image
+          source={item.poster_path ? { uri: IMAGE_BASE + item.poster_path } : null}
+          style={styles.gridPoster}
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
+        />
         <TouchableOpacity
           style={[styles.gridAddButton, isInWatchlist(item.id) && styles.addButtonActive]}
           onPress={() => toggleWatchlist(item)}
@@ -128,8 +140,10 @@ export default function HomeScreen() {
                 >
                   <View style={styles.watchlistPosterWrap}>
                     <Image
-                      source={{ uri: IMAGE_BASE + movie.poster_path }}
+                      source={movie.poster_path ? { uri: IMAGE_BASE + movie.poster_path } : null}
                       style={styles.watchlistPoster}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
                     />
                     <TouchableOpacity
                       style={styles.removeButton}
