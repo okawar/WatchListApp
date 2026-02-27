@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import { fetchData } from "./tmdb";
 import {
   TmdbCreditsResponse,
@@ -118,20 +119,21 @@ export const discoverTVAdvanced = (params: DiscoverParams) =>
     `/discover/tv?${buildDiscoverParts(params, "first_air_date_year").join("&")}`,
   );
 
-// ── Kinopoisk ─────────────────────────────────────────────────────────────────
+// ── Kinopoisk (via Supabase Edge Function — key stays server-side) ────────────
 export const getKinopoiskId = async (imdbId: string): Promise<number | null> => {
-  const key = process.env.EXPO_PUBLIC_KP_KEY;
-  if (!key || !imdbId) return null;
+  if (!imdbId) return null;
   try {
-    const resp = await fetch(
-      `https://api.kinopoisk.dev/v1.4/movie?externalId.imdb=${imdbId}&limit=1`,
-      { headers: { "X-API-KEY": key } },
+    const { data, error } = await supabase.functions.invoke<{ kpId: number | null }>(
+      "kp-lookup",
+      { body: { imdbId } },
     );
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    return (data?.docs?.[0]?.id as number) ?? null;
+    if (error) {
+      if (__DEV__) console.warn("[KP Edge]", error.message);
+      return null;
+    }
+    return data?.kpId ?? null;
   } catch (e) {
-    if (__DEV__) console.warn("[KP]", e);
+    if (__DEV__) console.warn("[KP Edge]", e);
     return null;
   }
 };
